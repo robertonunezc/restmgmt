@@ -30,7 +30,7 @@ app.use('/api/orders', require('./routes/orders'));
 app.use('/api/tables', require('./routes/tables'));
 app.use('/api/recipes', require('./routes/recipes'));
 app.use('/api/database', require('./routes/database'));
-app.use('/api/recipes',  require('./routes/recipes'));
+app.use('/api/inventory', require('./routes/inventory'));
 
 // Serve main page
 app.get('/', (req, res) => {
