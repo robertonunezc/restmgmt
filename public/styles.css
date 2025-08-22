@@ -1,0 +1,112 @@
+body {
+    background-color: #f8f9fa;
+}
+
+.section {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.table-card {
+    border: 2px solid #dee2e6;
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: white;
+    margin-bottom: 20px;
+}
+
+.table-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.table-card.available {
+    border-color: #28a745;
+    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+}
+
+.table-card.occupied {
+    border-color: #dc3545;
+    background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+}
+
+.table-card.reserved {
+    border-color: #ffc107;
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+}
+
+.table-card.cleaning {
+    border-color: #6c757d;
+    background: linear-gradient(135deg, #e2e3e5 0%, #d6d8db 100%);
+}
+
+.table-number {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.menu-item-card {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 15px;
+    background: white;
+    margin-bottom: 15px;
+    transition: transform 0.2s ease;
+}
+
+.menu-item-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.price-tag {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #28a745;
+}
+
+.order-card {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    background: white;
+    margin-bottom: 15px;
+}
+
+.order-status {
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.status-pending { background-color: #fff3cd; color: #856404; }
+.status-preparing { background-color: #cce5ff; color: #004085; }
+.status-ready { background-color: #d1ecf1; color: #0c5460; }
+.status-served { background-color: #d4edda; color: #155724; }
+.status-paid { background-color: #e2e3e5; color: #383d41; }
+
+.status-legend {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+@media (max-width: 768px) {
+    .table-card {
+        margin-bottom: 15px;
+    }
+    
+    .status-legend {
+        flex-wrap: wrap;
+        margin-top: 10px;
+    }
+}
