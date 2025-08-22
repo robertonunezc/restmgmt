@@ -101,15 +101,15 @@
     - Write integration tests for alert API endpoints
     - _Requirements: 4.1, 4.2, 4.3, 5.1, 5.2, 5.3_
 
-- [-] 7. Create frontend dashboard integration
-  - [-] 7.1 Implement inventory dashboard components
+- [x] 7. Create frontend dashboard integration
+  - [x] 7.1 Implement inventory dashboard components
     - Create inventory summary widgets for main dashboard
     - Implement out-of-stock banner component for dashboard alerts
     - Add inventory status indicators and quick action buttons
     - Write frontend tests for dashboard components
     - _Requirements: 5.1, 5.2, 5.3_
 
-  - [ ] 7.2 Create inventory management interface
+  - [x] 7.2 Create inventory management interface
     - Build product list and management interface
     - Implement product creation and editing forms
     - Create inventory adjustment and restock interfaces

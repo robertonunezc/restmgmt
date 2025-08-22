@@ -7,7 +7,7 @@ let orders = [];
 let recipes = [];
 let availableRecipes = [];
 let products = [];
-let inventoryAlerts = {};
+let inventoryAlerts = { lowStock: [], outOfStock: [] };
 let inventoryTransactions = [];
 let recipeLinks = [];
 
@@ -1220,3 +1220,1069 @@ function groupBy(array, key) {
     return result;
   }, {});
 }
+
+// Inventory Management Functionality
+
+let currentProductPage = 1;
+let productsPerPage = 25;
+let filteredProducts = [];
+
+async function loadInventoryData() {
+  try {
+    await Promise.all([
+      loadProducts(),
+      loadInventoryAlerts(),
+      loadInventoryTransactions(),
+      loadRecipeLinks()
+    ]);
+    updateInventoryDashboard();
+    updateProductStatistics();
+  } catch (error) {
+    console.error("Error loading inventory data:", error);
+  }
+}
+
+async function loadProducts() {
+  try {
+    const response = await fetch("/api/inventory/products");
+    if (response.ok) {
+      const data = await response.json();
+      // Handle both array format and object format with products property
+      if (Array.isArray(data)) {
+        products = data;
+      } else if (data.products && Array.isArray(data.products)) {
+        products = data.products;
+      } else {
+        products = [];
+      }
+      filteredProducts = [...products]; // Initialize filteredProducts with all products
+    } else {
+      products = [];
+      filteredProducts = [];
+    }
+    renderProductsList();
+  } catch (error) {
+    console.error("Error loading products:", error);
+    products = [];
+    filteredProducts = [];
+    renderProductsList();
+  }
+}
+
+async function loadInventoryAlerts() {
+  try {
+    const [lowStockResponse, outOfStockResponse] = await Promise.all([
+      fetch("/api/inventory/alerts/low-stock"),
+      fetch("/api/inventory/alerts/out-of-stock")
+    ]);
+    
+    if (lowStockResponse.ok) {
+      const lowStockData = await lowStockResponse.json();
+      inventoryAlerts.lowStock = Array.isArray(lowStockData) ? lowStockData : [];
+    } else {
+      inventoryAlerts.lowStock = [];
+    }
+    
+    if (outOfStockResponse.ok) {
+      const outOfStockData = await outOfStockResponse.json();
+      inventoryAlerts.outOfStock = Array.isArray(outOfStockData) ? outOfStockData : [];
+    } else {
+      inventoryAlerts.outOfStock = [];
+    }
+    
+    renderInventoryAlerts();
+    updateOutOfStockBanner();
+  } catch (error) {
+    console.error("Error loading inventory alerts:", error);
+    inventoryAlerts.lowStock = [];
+    inventoryAlerts.outOfStock = [];
+    renderInventoryAlerts();
+    updateOutOfStockBanner();
+  }
+}
+
+async function loadInventoryTransactions() {
+  try {
+    const response = await fetch("/api/inventory/transactions");
+    if (response.ok) {
+      const data = await response.json();
+      inventoryTransactions = Array.isArray(data) ? data : [];
+    } else {
+      inventoryTransactions = [];
+    }
+    renderTransactionsList();
+  } catch (error) {
+    console.error("Error loading inventory transactions:", error);
+    inventoryTransactions = [];
+    renderTransactionsList();
+  }
+}
+
+async function loadRecipeLinks() {
+  try {
+    const response = await fetch("/api/inventory/recipe-links");
+    if (response.ok) {
+      const data = await response.json();
+      recipeLinks = Array.isArray(data) ? data : [];
+    } else {
+      recipeLinks = [];
+    }
+    populateRecipeDropdowns();
+  } catch (error) {
+    console.error("Error loading recipe links:", error);
+    recipeLinks = [];
+    populateRecipeDropdowns();
+  }
+}
+
+function updateInventoryDashboard() {
+  // Update summary cards
+  const totalProducts = products.length;
+  const lowStockCount = inventoryAlerts.lowStock ? inventoryAlerts.lowStock.length : 0;
+  const outOfStockCount = inventoryAlerts.outOfStock ? inventoryAlerts.outOfStock.length : 0;
+  const totalValue = products.reduce((sum, product) => {
+    return sum + (product.current_quantity * (product.cost_per_unit || 0));
+  }, 0);
+
+  document.getElementById("total-products").textContent = totalProducts;
+  document.getElementById("low-stock-count").textContent = lowStockCount;
+  document.getElementById("out-of-stock-count").textContent = outOfStockCount;
+  document.getElementById("total-value").textContent = `$${totalValue.toFixed(2)}`;
+}
+
+function updateOutOfStockBanner() {
+  const banner = document.getElementById("out-of-stock-banner");
+  const itemsContainer = document.getElementById("out-of-stock-items");
+  
+  if (inventoryAlerts.outOfStock && inventoryAlerts.outOfStock.length > 0) {
+    const itemsList = inventoryAlerts.outOfStock.map(item => item.name).join(", ");
+    itemsContainer.textContent = `The following items are out of stock: ${itemsList}`;
+    banner.classList.remove("d-none");
+  } else {
+    banner.classList.add("d-none");
+  }
+}
+
+function renderProductsList() {
+  const container = document.getElementById("products-list");
+  
+  // Ensure filteredProducts is an array
+  if (!Array.isArray(filteredProducts)) filteredProducts = [];
+  
+  if (filteredProducts.length === 0) {
+    if (container) {
+      container.innerHTML = '<p class="text-muted text-center">No products found. <a href="#" onclick="showAddProductModal()">Add your first product</a></p>';
+    }
+    updateProductStatistics();
+    return;
+  }
+
+  // Calculate pagination
+  const startIndex = (currentProductPage - 1) * productsPerPage;
+  const endIndex = startIndex + productsPerPage;
+  const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
+
+  const tableHtml = `
+    <table class="table table-hover">
+      <thead class="table-light">
+        <tr>
+          <th>
+            <input type="checkbox" id="select-all-products" onchange="toggleAllProducts(this.checked)">
+          </th>
+          <th>Product Name</th>
+          <th>Current Quantity</th>
+          <th>Unit</th>
+          <th>Status</th>
+          <th>Cost per Unit</th>
+          <th>Total Value</th>
+          <th>Last Updated</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${paginatedProducts.map(product => {
+          const status = getProductStatus(product);
+          const totalValue = (product.current_quantity * (product.cost_per_unit || 0)).toFixed(2);
+          const lastUpdated = product.updated_at ? new Date(product.updated_at).toLocaleDateString() : '-';
+          
+          return `
+            <tr>
+              <td>
+                <input type="checkbox" class="product-checkbox" value="${product.id}">
+              </td>
+              <td>
+                <div class="d-flex align-items-center">
+                  <div>
+                    <strong>${product.name}</strong>
+                    ${product.description ? `<br><small class="text-muted">${product.description}</small>` : ''}
+                    ${product.supplier_info ? `<br><small class="text-info"><i class="fas fa-truck"></i> ${product.supplier_info.substring(0, 30)}${product.supplier_info.length > 30 ? '...' : ''}</small>` : ''}
+                  </div>
+                </div>
+              </td>
+              <td>
+                <span class="fw-bold">${product.current_quantity}</span>
+                ${product.low_stock_threshold ? `<br><small class="text-muted">Threshold: ${product.low_stock_threshold}</small>` : ''}
+              </td>
+              <td>${product.unit_of_measure}</td>
+              <td>
+                <span class="badge product-quantity-badge ${status.class}">
+                  ${status.text}
+                </span>
+              </td>
+              <td>${product.cost_per_unit ? `$${parseFloat(product.cost_per_unit).toFixed(2)}` : '-'}</td>
+              <td class="fw-bold text-success">$${totalValue}</td>
+              <td>${lastUpdated}</td>
+              <td>
+                <div class="btn-group" role="group">
+                  <button class="btn btn-sm btn-outline-primary inventory-action-btn" onclick="showAdjustmentModal(${product.id})" title="Adjust Quantity">
+                    <i class="fas fa-edit"></i> Adjust
+                  </button>
+                  <button class="btn btn-sm btn-outline-success inventory-action-btn" onclick="quickRestock(${product.id})" title="Quick Restock">
+                    <i class="fas fa-plus"></i> Restock
+                  </button>
+                  <button class="btn btn-sm btn-outline-info inventory-action-btn" onclick="editProduct(${product.id})" title="Edit Product">
+                    <i class="fas fa-cog"></i> Edit
+                  </button>
+                  <button class="btn btn-sm btn-outline-danger inventory-action-btn" onclick="deleteProduct(${product.id})" title="Delete Product">
+                    <i class="fas fa-trash"></i> Delete
+                  </button>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('')}
+      </tbody>
+    </table>
+  `;
+  
+  container.innerHTML = tableHtml;
+  renderProductsPagination();
+  updateProductStatistics();
+}
+
+function getProductStatus(product) {
+  if (product.current_quantity <= 0) {
+    return { class: 'out-of-stock', text: 'Out of Stock' };
+  } else if (product.current_quantity <= product.low_stock_threshold) {
+    return { class: 'low-stock', text: 'Low Stock' };
+  } else {
+    return { class: 'in-stock', text: 'In Stock' };
+  }
+}
+
+function renderInventoryAlerts() {
+  // Render low stock alerts
+  const lowStockContainer = document.getElementById("low-stock-alerts");
+  if (inventoryAlerts.lowStock && inventoryAlerts.lowStock.length > 0) {
+    lowStockContainer.innerHTML = inventoryAlerts.lowStock.map(item => `
+      <div class="inventory-alert-item low-stock">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <strong>${item.name}</strong>
+            <br><small>Current: ${item.current_quantity} ${item.unit_of_measure} | Threshold: ${item.low_stock_threshold}</small>
+          </div>
+          <button class="btn btn-sm btn-warning" onclick="showAdjustmentModal(${item.id})">
+            Restock
+          </button>
+        </div>
+      </div>
+    `).join('');
+  } else {
+    lowStockContainer.innerHTML = '<p class="text-muted">No low stock alerts</p>';
+  }
+
+  // Render out of stock alerts
+  const outOfStockContainer = document.getElementById("out-of-stock-alerts");
+  if (inventoryAlerts.outOfStock && inventoryAlerts.outOfStock.length > 0) {
+    outOfStockContainer.innerHTML = inventoryAlerts.outOfStock.map(item => `
+      <div class="inventory-alert-item out-of-stock">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <strong>${item.name}</strong>
+            <br><small class="text-danger">Out of stock!</small>
+          </div>
+          <button class="btn btn-sm btn-danger" onclick="showAdjustmentModal(${item.id})">
+            Restock Now
+          </button>
+        </div>
+      </div>
+    `).join('');
+  } else {
+    outOfStockContainer.innerHTML = '<p class="text-muted">No out of stock items</p>';
+  }
+}
+
+function renderTransactionsList() {
+  const container = document.getElementById("transactions-list");
+  
+  if (inventoryTransactions.length === 0) {
+    container.innerHTML = '<p class="text-muted text-center">No transactions found.</p>';
+    return;
+  }
+
+  const tableHtml = `
+    <table class="table table-hover">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Product</th>
+          <th>Type</th>
+          <th>Quantity Change</th>
+          <th>Reference</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${inventoryTransactions.map(transaction => `
+          <tr>
+            <td>${new Date(transaction.created_at).toLocaleString()}</td>
+            <td>${transaction.product_name || 'Unknown Product'}</td>
+            <td>
+              <span class="badge transaction-type-badge transaction-type-${transaction.transaction_type}">
+                ${transaction.transaction_type.toUpperCase()}
+              </span>
+            </td>
+            <td class="${transaction.quantity_change >= 0 ? 'text-success' : 'text-danger'}">
+              ${transaction.quantity_change >= 0 ? '+' : ''}${transaction.quantity_change}
+            </td>
+            <td>${transaction.reference_type || '-'} ${transaction.reference_id || ''}</td>
+            <td>${transaction.notes || '-'}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+  
+  container.innerHTML = tableHtml;
+}
+
+// Product Management Functions
+function showAddProductModal() {
+  document.getElementById("productForm").reset();
+  document.getElementById("productId").value = "";
+  document.getElementById("productModalTitle").textContent = "Add Product";
+  new bootstrap.Modal(document.getElementById("productModal")).show();
+}
+
+function editProduct(productId) {
+  const product = products.find(p => p.id === productId);
+  if (!product) return;
+
+  document.getElementById("productId").value = product.id;
+  document.getElementById("productName").value = product.name;
+  document.getElementById("productDescription").value = product.description || "";
+  document.getElementById("productUnit").value = product.unit_of_measure;
+  document.getElementById("productQuantity").value = product.current_quantity;
+  document.getElementById("productThreshold").value = product.low_stock_threshold;
+  document.getElementById("productCost").value = product.cost_per_unit || "";
+  document.getElementById("productSupplier").value = product.supplier_info || "";
+  
+  document.getElementById("productModalTitle").textContent = "Edit Product";
+  new bootstrap.Modal(document.getElementById("productModal")).show();
+}
+
+async function saveProduct() {
+  const productId = document.getElementById("productId").value;
+  const formData = {
+    name: document.getElementById("productName").value,
+    description: document.getElementById("productDescription").value,
+    unit_of_measure: document.getElementById("productUnit").value,
+    current_quantity: parseFloat(document.getElementById("productQuantity").value),
+    low_stock_threshold: parseInt(document.getElementById("productThreshold").value),
+    cost_per_unit: parseFloat(document.getElementById("productCost").value) || null,
+    supplier_info: document.getElementById("productSupplier").value
+  };
+
+  try {
+    const url = productId ? `/api/inventory/products/${productId}` : "/api/inventory/products";
+    const method = productId ? "PUT" : "POST";
+    
+    const response = await fetch(url, {
+      method: method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(formData)
+    });
+
+    if (response.ok) {
+      bootstrap.Modal.getInstance(document.getElementById("productModal")).hide();
+      loadInventoryData();
+    } else {
+      const error = await response.json();
+      alert("Error saving product: " + error.error);
+    }
+  } catch (error) {
+    console.error("Error saving product:", error);
+    alert("Error saving product. Please try again.");
+  }
+}
+
+async function deleteProduct(productId) {
+  const product = products.find(p => p.id === productId);
+  if (!product) return;
+
+  if (!confirm(`Are you sure you want to delete "${product.name}"? This action cannot be undone.`)) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/inventory/products/${productId}`, {
+      method: "DELETE"
+    });
+
+    if (response.ok) {
+      loadInventoryData();
+    } else {
+      const error = await response.json();
+      alert("Error deleting product: " + error.error);
+    }
+  } catch (error) {
+    console.error("Error deleting product:", error);
+    alert("Error deleting product. Please try again.");
+  }
+}
+
+// Inventory Adjustment Functions
+function showAdjustmentModal(productId) {
+  const product = products.find(p => p.id === productId);
+  if (!product) return;
+
+  document.getElementById("adjustmentForm").reset();
+  document.getElementById("adjustmentProductId").value = product.id;
+  document.getElementById("adjustmentProductName").value = product.name;
+  document.getElementById("adjustmentCurrentQuantity").value = `${product.current_quantity} ${product.unit_of_measure}`;
+  
+  new bootstrap.Modal(document.getElementById("adjustmentModal")).show();
+}
+
+async function quickRestock(productId) {
+  const quantity = prompt("Enter quantity to add:");
+  if (!quantity || isNaN(quantity) || parseFloat(quantity) <= 0) return;
+
+  try {
+    const response = await fetch(`/api/inventory/products/${productId}/restock`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        quantity: parseFloat(quantity),
+        notes: "Quick restock from dashboard"
+      })
+    });
+
+    if (response.ok) {
+      loadInventoryData();
+    } else {
+      const error = await response.json();
+      alert("Error restocking product: " + error.error);
+    }
+  } catch (error) {
+    console.error("Error restocking product:", error);
+    alert("Error restocking product. Please try again.");
+  }
+}
+
+async function saveAdjustment() {
+  const productId = document.getElementById("adjustmentProductId").value;
+  const type = document.getElementById("adjustmentType").value;
+  const quantity = parseFloat(document.getElementById("adjustmentQuantity").value);
+  const notes = document.getElementById("adjustmentNotes").value;
+
+  if (!quantity || isNaN(quantity)) {
+    alert("Please enter a valid quantity.");
+    return;
+  }
+
+  try {
+    const endpoint = type === "restock" ? "restock" : "adjust";
+    const response = await fetch(`/api/inventory/products/${productId}/${endpoint}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        quantity: quantity,
+        transaction_type: type,
+        notes: notes
+      })
+    });
+
+    if (response.ok) {
+      bootstrap.Modal.getInstance(document.getElementById("adjustmentModal")).hide();
+      loadInventoryData();
+    } else {
+      const error = await response.json();
+      alert("Error adjusting inventory: " + error.error);
+    }
+  } catch (error) {
+    console.error("Error adjusting inventory:", error);
+    alert("Error adjusting inventory. Please try again.");
+  }
+}
+
+// Recipe Linking Functions
+function populateRecipeDropdowns() {
+  // Populate recipe select in main tab
+  const recipeSelect = document.getElementById("recipe-select");
+  recipeSelect.innerHTML = '<option value="">Select a recipe to view links...</option>';
+  
+  // Populate recipe select in modal
+  const modalRecipeSelect = document.getElementById("linkRecipeId");
+  modalRecipeSelect.innerHTML = '<option value="">Select recipe...</option>';
+  
+  // Populate product select in modal
+  const productSelect = document.getElementById("linkProductId");
+  productSelect.innerHTML = '<option value="">Select product...</option>';
+  
+  recipes.forEach(recipe => {
+    const option1 = document.createElement("option");
+    option1.value = recipe.id;
+    option1.textContent = recipe.name;
+    recipeSelect.appendChild(option1);
+    
+    const option2 = document.createElement("option");
+    option2.value = recipe.id;
+    option2.textContent = recipe.name;
+    modalRecipeSelect.appendChild(option2);
+  });
+  
+  products.forEach(product => {
+    const option = document.createElement("option");
+    option.value = product.id;
+    option.textContent = `${product.name} (${product.unit_of_measure})`;
+    productSelect.appendChild(option);
+  });
+}
+
+function showRecipeLinkModal() {
+  document.getElementById("recipeLinkForm").reset();
+  populateRecipeDropdowns();
+  new bootstrap.Modal(document.getElementById("recipeLinkModal")).show();
+}
+
+async function loadRecipeIngredients() {
+  const recipeId = document.getElementById("linkRecipeId").value;
+  const ingredientSelect = document.getElementById("linkIngredientId");
+  
+  ingredientSelect.innerHTML = '<option value="">Select ingredient...</option>';
+  
+  if (!recipeId) return;
+
+  try {
+    const response = await fetch(`/api/recipes/${recipeId}`);
+    const data = await response.json();
+    const recipe = data.recipe;
+    
+    if (recipe.ingredients) {
+      recipe.ingredients.forEach(ingredient => {
+        const option = document.createElement("option");
+        option.value = ingredient.id;
+        option.textContent = `${ingredient.name} (${ingredient.quantity || ''} ${ingredient.unit || ''})`;
+        ingredientSelect.appendChild(option);
+      });
+    }
+  } catch (error) {
+    console.error("Error loading recipe ingredients:", error);
+  }
+}
+
+async function saveRecipeLink() {
+  const formData = {
+    recipe_ingredient_id: parseInt(document.getElementById("linkIngredientId").value),
+    product_id: parseInt(document.getElementById("linkProductId").value),
+    quantity_per_serving: parseFloat(document.getElementById("linkQuantityPerServing").value)
+  };
+
+  try {
+    const response = await fetch("/api/inventory/recipe-links", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(formData)
+    });
+
+    if (response.ok) {
+      bootstrap.Modal.getInstance(document.getElementById("recipeLinkModal")).hide();
+      loadRecipeLinks();
+    } else {
+      const error = await response.json();
+      alert("Error saving recipe link: " + error.error);
+    }
+  } catch (error) {
+    console.error("Error saving recipe link:", error);
+    alert("Error saving recipe link. Please try again.");
+  }
+}
+
+// Search and Filter Functions
+document.addEventListener("DOMContentLoaded", function() {
+  // Product search functionality
+  const productSearch = document.getElementById("product-search");
+  if (productSearch) {
+    productSearch.addEventListener("input", filterProducts);
+  }
+  
+  const productFilter = document.getElementById("product-filter");
+  if (productFilter) {
+    productFilter.addEventListener("change", filterProducts);
+  }
+});
+
+function filterProducts() {
+  const searchTerm = document.getElementById("product-search").value.toLowerCase();
+  const filterType = document.getElementById("product-filter").value;
+  
+  let filteredProducts = products.filter(product => {
+    const matchesSearch = product.name.toLowerCase().includes(searchTerm) ||
+                         (product.description && product.description.toLowerCase().includes(searchTerm));
+    
+    let matchesFilter = true;
+    if (filterType === "low-stock") {
+      matchesFilter = product.current_quantity <= product.low_stock_threshold && product.current_quantity > 0;
+    } else if (filterType === "out-of-stock") {
+      matchesFilter = product.current_quantity <= 0;
+    } else if (filterType === "in-stock") {
+      matchesFilter = product.current_quantity > product.low_stock_threshold;
+    }
+    
+    return matchesSearch && matchesFilter;
+  });
+  
+  // Temporarily replace products array for rendering
+  const originalProducts = products;
+  products = filteredProducts;
+  renderProductsList();
+  products = originalProducts;
+}
+
+// Utility Functions
+function showBulkRestockModal() {
+  alert("Bulk restock functionality coming soon!");
+}
+
+function showInventoryReports() {
+  alert("Inventory reports functionality coming soon!");
+}
+
+function showRecipeLinking() {
+  // Switch to recipe links tab
+  const recipeLinkTab = document.getElementById("recipe-links-tab");
+  recipeLinkTab.click();
+}
+
+// Enhanced Inventory Management Functions
+
+function updateProductStatistics() {
+  // Ensure arrays are initialized
+  if (!Array.isArray(filteredProducts)) filteredProducts = [];
+  if (!Array.isArray(products)) products = [];
+  
+  const showing = Math.min(filteredProducts.length, productsPerPage);
+  const total = products.length;
+  const totalValue = filteredProducts.reduce((sum, product) => {
+    return sum + (product.current_quantity * (product.cost_per_unit || 0));
+  }, 0);
+  const avgCost = filteredProducts.length > 0 ? 
+    filteredProducts.reduce((sum, product) => sum + (product.cost_per_unit || 0), 0) / filteredProducts.length : 0;
+
+  const showingElement = document.getElementById("products-showing");
+  const totalElement = document.getElementById("products-total");
+  const valueElement = document.getElementById("products-value");
+  const avgCostElement = document.getElementById("products-avg-cost");
+  
+  if (showingElement) showingElement.textContent = showing;
+  if (totalElement) totalElement.textContent = total;
+  if (valueElement) valueElement.textContent = `$${totalValue.toFixed(2)}`;
+  if (avgCostElement) avgCostElement.textContent = `$${avgCost.toFixed(2)}`;
+}
+
+function renderProductsPagination() {
+  const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
+  const pagination = document.getElementById("products-pagination");
+  
+  if (totalPages <= 1) {
+    pagination.innerHTML = '';
+    return;
+  }
+
+  let paginationHtml = '';
+  
+  // Previous button
+  paginationHtml += `
+    <li class="page-item ${currentProductPage === 1 ? 'disabled' : ''}">
+      <a class="page-link" href="#" onclick="changeProductPage(${currentProductPage - 1})">Previous</a>
+    </li>
+  `;
+  
+  // Page numbers
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === 1 || i === totalPages || (i >= currentProductPage - 2 && i <= currentProductPage + 2)) {
+      paginationHtml += `
+        <li class="page-item ${i === currentProductPage ? 'active' : ''}">
+          <a class="page-link" href="#" onclick="changeProductPage(${i})">${i}</a>
+        </li>
+      `;
+    } else if (i === currentProductPage - 3 || i === currentProductPage + 3) {
+      paginationHtml += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+    }
+  }
+  
+  // Next button
+  paginationHtml += `
+    <li class="page-item ${currentProductPage === totalPages ? 'disabled' : ''}">
+      <a class="page-link" href="#" onclick="changeProductPage(${currentProductPage + 1})">Next</a>
+    </li>
+  `;
+  
+  pagination.innerHTML = paginationHtml;
+}
+
+function changeProductPage(page) {
+  const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
+  if (page >= 1 && page <= totalPages) {
+    currentProductPage = page;
+    renderProductsList();
+  }
+}
+
+function changeProductsPerPage() {
+  productsPerPage = parseInt(document.getElementById("products-per-page").value);
+  currentProductPage = 1;
+  renderProductsList();
+}
+
+function toggleAllProducts(checked) {
+  const checkboxes = document.querySelectorAll('.product-checkbox');
+  checkboxes.forEach(checkbox => checkbox.checked = checked);
+}
+
+function getSelectedProducts() {
+  const checkboxes = document.querySelectorAll('.product-checkbox:checked');
+  return Array.from(checkboxes).map(cb => parseInt(cb.value));
+}
+
+// Enhanced filtering
+function filterProducts() {
+  // Ensure products is an array
+  if (!Array.isArray(products)) products = [];
+  
+  const searchTerm = document.getElementById("product-search")?.value?.toLowerCase() || "";
+  const filterType = document.getElementById("product-filter")?.value || "";
+  const unitFilter = document.getElementById("unit-filter")?.value || "";
+  
+  filteredProducts = products.filter(product => {
+    const matchesSearch = product.name.toLowerCase().includes(searchTerm) ||
+                         (product.description && product.description.toLowerCase().includes(searchTerm)) ||
+                         (product.supplier_info && product.supplier_info.toLowerCase().includes(searchTerm));
+    
+    let matchesFilter = true;
+    if (filterType === "low-stock") {
+      matchesFilter = product.current_quantity <= product.low_stock_threshold && product.current_quantity > 0;
+    } else if (filterType === "out-of-stock") {
+      matchesFilter = product.current_quantity <= 0;
+    } else if (filterType === "in-stock") {
+      matchesFilter = product.current_quantity > product.low_stock_threshold;
+    }
+    
+    let matchesUnit = true;
+    if (unitFilter) {
+      matchesUnit = product.unit_of_measure === unitFilter;
+    }
+    
+    return matchesSearch && matchesFilter && matchesUnit;
+  });
+  
+  currentProductPage = 1;
+  renderProductsList();
+}
+
+// Recipe linking enhancements
+async function loadRecipeLinks() {
+  const recipeId = document.getElementById("recipe-select").value;
+  if (!recipeId) {
+    document.getElementById("recipe-links-list").innerHTML = '<p class="text-muted">Select a recipe to view its ingredient links.</p>';
+    document.getElementById("recipe-info-card").style.display = 'none';
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/inventory/recipe-links/${recipeId}`);
+    const links = await response.json();
+    
+    // Load recipe details
+    const recipeResponse = await fetch(`/api/recipes/${recipeId}`);
+    const recipeData = await recipeResponse.json();
+    const recipe = recipeData.recipe;
+    
+    renderRecipeInfo(recipe);
+    renderRecipeLinks(links, recipe);
+    calculateRecipeCost(links, recipe);
+  } catch (error) {
+    console.error("Error loading recipe links:", error);
+  }
+}
+
+function renderRecipeInfo(recipe) {
+  const card = document.getElementById("recipe-info-card");
+  const title = document.getElementById("recipe-info-title");
+  const details = document.getElementById("recipe-info-details");
+  
+  title.textContent = recipe.name;
+  details.innerHTML = `
+    <p class="mb-2">${recipe.description || 'No description available'}</p>
+    <div class="row">
+      <div class="col-md-3">
+        <small class="text-muted">Prep Time</small>
+        <div>${recipe.prep_time || 0} min</div>
+      </div>
+      <div class="col-md-3">
+        <small class="text-muted">Cook Time</small>
+        <div>${recipe.cook_time || 0} min</div>
+      </div>
+      <div class="col-md-3">
+        <small class="text-muted">Servings</small>
+        <div>${recipe.servings || 1}</div>
+      </div>
+      <div class="col-md-3">
+        <small class="text-muted">Difficulty</small>
+        <div>${recipe.difficulty || 'Not specified'}</div>
+      </div>
+    </div>
+  `;
+  
+  card.style.display = 'block';
+}
+
+function renderRecipeLinks(links, recipe) {
+  const container = document.getElementById("recipe-links-list");
+  
+  if (links.length === 0) {
+    container.innerHTML = `
+      <div class="alert alert-info">
+        <h6>No ingredient links found</h6>
+        <p class="mb-0">This recipe doesn't have any ingredients linked to inventory products yet. 
+        <a href="#" onclick="showRecipeLinkModal()">Add the first link</a></p>
+      </div>
+    `;
+    return;
+  }
+
+  const tableHtml = `
+    <table class="table table-hover">
+      <thead class="table-light">
+        <tr>
+          <th>Recipe Ingredient</th>
+          <th>Linked Product</th>
+          <th>Quantity per Serving</th>
+          <th>Available Stock</th>
+          <th>Cost per Serving</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${links.map(link => {
+          const costPerServing = (link.quantity_per_serving * (link.product_cost_per_unit || 0)).toFixed(3);
+          const stockStatus = getProductStatus({ current_quantity: link.product_current_quantity, low_stock_threshold: link.product_low_stock_threshold });
+          
+          return `
+            <tr>
+              <td>
+                <strong>${link.ingredient_name}</strong>
+                ${link.ingredient_notes ? `<br><small class="text-muted">${link.ingredient_notes}</small>` : ''}
+              </td>
+              <td>
+                <strong>${link.product_name}</strong>
+                <br><small class="text-muted">${link.product_unit_of_measure}</small>
+              </td>
+              <td>${link.quantity_per_serving} ${link.product_unit_of_measure}</td>
+              <td>
+                <span class="badge product-quantity-badge ${stockStatus.class}">
+                  ${link.product_current_quantity} ${link.product_unit_of_measure}
+                </span>
+              </td>
+              <td class="text-success">$${costPerServing}</td>
+              <td>
+                <div class="btn-group" role="group">
+                  <button class="btn btn-sm btn-outline-primary" onclick="editRecipeLink(${link.id})" title="Edit Link">
+                    <i class="fas fa-edit"></i>
+                  </button>
+                  <button class="btn btn-sm btn-outline-danger" onclick="deleteRecipeLink(${link.id})" title="Delete Link">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('')}
+      </tbody>
+    </table>
+  `;
+  
+  container.innerHTML = tableHtml;
+}
+
+function calculateRecipeCost(links, recipe) {
+  const totalCost = links.reduce((sum, link) => {
+    return sum + (link.quantity_per_serving * (link.product_cost_per_unit || 0));
+  }, 0);
+  
+  const costPerServing = totalCost;
+  const totalRecipeCost = totalCost * (recipe.servings || 1);
+  
+  document.getElementById("recipe-cost-per-serving").textContent = `$${costPerServing.toFixed(2)}`;
+  document.getElementById("recipe-total-cost").textContent = `$${totalRecipeCost.toFixed(2)}`;
+}
+
+// Bulk operations
+function showBulkRestockModal() {
+  populateBulkRestockProducts();
+  new bootstrap.Modal(document.getElementById("bulkOperationsModal")).show();
+}
+
+function populateBulkRestockProducts() {
+  const container = document.getElementById("bulk-restock-products");
+  
+  const productsHtml = products.map(product => {
+    const status = getProductStatus(product);
+    return `
+      <div class="form-check mb-2">
+        <input class="form-check-input" type="checkbox" value="${product.id}" id="bulk-product-${product.id}">
+        <label class="form-check-label d-flex justify-content-between align-items-center" for="bulk-product-${product.id}">
+          <div>
+            <strong>${product.name}</strong>
+            <br><small class="text-muted">${product.current_quantity} ${product.unit_of_measure}</small>
+          </div>
+          <span class="badge product-quantity-badge ${status.class}">${status.text}</span>
+        </label>
+      </div>
+    `;
+  }).join('');
+  
+  container.innerHTML = productsHtml;
+}
+
+async function executeBulkOperation() {
+  const activeTab = document.querySelector('#bulkTabs .nav-link.active').id;
+  
+  if (activeTab === 'bulk-restock-tab') {
+    await executeBulkRestock();
+  } else if (activeTab === 'bulk-adjust-tab') {
+    await executeBulkAdjust();
+  } else if (activeTab === 'bulk-import-tab') {
+    await executeBulkImport();
+  }
+}
+
+async function executeBulkRestock() {
+  const selectedProducts = Array.from(document.querySelectorAll('#bulk-restock-products input:checked')).map(cb => cb.value);
+  const quantity = parseFloat(document.getElementById("bulkRestockQuantity").value);
+  const reference = document.getElementById("bulkRestockReference").value;
+  const notes = document.getElementById("bulkRestockNotes").value;
+  
+  if (selectedProducts.length === 0 || !quantity || quantity <= 0) {
+    alert("Please select products and enter a valid quantity.");
+    return;
+  }
+  
+  try {
+    const promises = selectedProducts.map(productId => 
+      fetch(`/api/inventory/products/${productId}/restock`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          quantity: quantity,
+          notes: `${notes} (Bulk restock${reference ? ` - ${reference}` : ''})`
+        })
+      })
+    );
+    
+    await Promise.all(promises);
+    bootstrap.Modal.getInstance(document.getElementById("bulkOperationsModal")).hide();
+    loadInventoryData();
+    alert(`Successfully restocked ${selectedProducts.length} products.`);
+  } catch (error) {
+    console.error("Error executing bulk restock:", error);
+    alert("Error executing bulk restock. Please try again.");
+  }
+}
+
+// Export functionality
+function exportProductsCSV() {
+  const csvContent = generateProductsCSV();
+  downloadCSV(csvContent, 'inventory-products.csv');
+}
+
+function generateProductsCSV() {
+  const headers = ['Name', 'Description', 'Unit of Measure', 'Current Quantity', 'Low Stock Threshold', 'Cost per Unit', 'Total Value', 'Supplier Info'];
+  const rows = filteredProducts.map(product => [
+    product.name,
+    product.description || '',
+    product.unit_of_measure,
+    product.current_quantity,
+    product.low_stock_threshold,
+    product.cost_per_unit || '',
+    (product.current_quantity * (product.cost_per_unit || 0)).toFixed(2),
+    product.supplier_info || ''
+  ]);
+  
+  return [headers, ...rows].map(row => 
+    row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(',')
+  ).join('\n');
+}
+
+function downloadCSV(content, filename) {
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  if (link.download !== undefined) {
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+}
+
+function downloadCSVTemplate() {
+  const template = 'name,description,unit_of_measure,current_quantity,low_stock_threshold,cost_per_unit\n"Sample Product","Sample description","kg",100,10,5.99';
+  downloadCSV(template, 'product-import-template.csv');
+}
+
+// Recipe cost analysis
+function showRecipeCostAnalysis() {
+  const recipeId = document.getElementById("recipe-select").value;
+  if (!recipeId) {
+    alert("Please select a recipe first.");
+    return;
+  }
+  
+  // This would load detailed cost analysis
+  new bootstrap.Modal(document.getElementById("recipeCostModal")).show();
+}
+
+// Initialize enhanced filtering
+document.addEventListener("DOMContentLoaded", function() {
+  // Enhanced product search functionality
+  const productSearch = document.getElementById("product-search");
+  if (productSearch) {
+    productSearch.addEventListener("input", filterProducts);
+  }
+  
+  const productFilter = document.getElementById("product-filter");
+  if (productFilter) {
+    productFilter.addEventListener("change", filterProducts);
+  }
+  
+  const unitFilter = document.getElementById("unit-filter");
+  if (unitFilter) {
+    unitFilter.addEventListener("change", filterProducts);
+  }
+  
+  // Initialize filtered products
+  if (!Array.isArray(products)) products = [];
+  filteredProducts = [...products];
+});
+
+// Override the original loadProducts to initialize filtered products
+const originalLoadProducts = loadProducts;
+loadProducts = async function() {
+  await originalLoadProducts();
+  filteredProducts = [...products];
+  renderProductsList();
+};
