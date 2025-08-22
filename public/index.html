@@ -36,6 +36,9 @@
           <button class="btn btn-outline-light me-2" onclick="showSection('orders')">
             Orders
           </button>
+          <button class="btn btn-outline-light me-2" onclick="showSection('inventory')">
+            Inventory
+          </button>
           <button class="btn btn-outline-warning" onclick="showSection('database')">
             Database
           </button>
@@ -99,6 +102,214 @@
           </button>
         </div>
         <div id="orders-list"></div>
+      </div>
+
+      <!-- Inventory Section -->
+      <div id="inventory-section" class="section" style="display: none">
+        <!-- Out-of-Stock Alert Banner -->
+        <div id="out-of-stock-banner" class="alert alert-danger d-none" role="alert">
+          <div class="d-flex align-items-center">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <div>
+              <strong>⚠️ Out of Stock Alert!</strong>
+              <div id="out-of-stock-items"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dashboard Summary Cards -->
+        <div class="row mb-4">
+          <div class="col-md-3">
+            <div class="card inventory-summary-card">
+              <div class="card-body text-center">
+                <div class="inventory-icon">📦</div>
+                <h3 id="total-products" class="card-title">-</h3>
+                <p class="card-text text-muted">Total Products</p>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card inventory-summary-card">
+              <div class="card-body text-center">
+                <div class="inventory-icon">⚠️</div>
+                <h3 id="low-stock-count" class="card-title text-warning">-</h3>
+                <p class="card-text text-muted">Low Stock Items</p>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card inventory-summary-card">
+              <div class="card-body text-center">
+                <div class="inventory-icon">❌</div>
+                <h3 id="out-of-stock-count" class="card-title text-danger">-</h3>
+                <p class="card-text text-muted">Out of Stock</p>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card inventory-summary-card">
+              <div class="card-body text-center">
+                <div class="inventory-icon">💰</div>
+                <h3 id="total-value" class="card-title text-success">-</h3>
+                <p class="card-text text-muted">Total Value</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="row mb-4">
+          <div class="col-12">
+            <div class="card">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Quick Actions</h5>
+              </div>
+              <div class="card-body">
+                <div class="row">
+                  <div class="col-md-3">
+                    <button class="btn btn-primary w-100 mb-2" onclick="showAddProductModal()">
+                      <i class="fas fa-plus"></i> Add Product
+                    </button>
+                  </div>
+                  <div class="col-md-3">
+                    <button class="btn btn-success w-100 mb-2" onclick="showBulkRestockModal()">
+                      <i class="fas fa-truck"></i> Bulk Restock
+                    </button>
+                  </div>
+                  <div class="col-md-3">
+                    <button class="btn btn-info w-100 mb-2" onclick="showInventoryReports()">
+                      <i class="fas fa-chart-bar"></i> View Reports
+                    </button>
+                  </div>
+                  <div class="col-md-3">
+                    <button class="btn btn-warning w-100 mb-2" onclick="showRecipeLinking()">
+                      <i class="fas fa-link"></i> Recipe Linking
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Inventory Management Tabs -->
+        <div class="card">
+          <div class="card-header">
+            <ul class="nav nav-tabs card-header-tabs" id="inventoryTabs" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="products-tab" data-bs-toggle="tab" data-bs-target="#products-pane" type="button" role="tab">
+                  Products
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="alerts-tab" data-bs-toggle="tab" data-bs-target="#alerts-pane" type="button" role="tab">
+                  Alerts
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="transactions-tab" data-bs-toggle="tab" data-bs-target="#transactions-pane" type="button" role="tab">
+                  Transactions
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="recipe-links-tab" data-bs-toggle="tab" data-bs-target="#recipe-links-pane" type="button" role="tab">
+                  Recipe Links
+                </button>
+              </li>
+            </ul>
+          </div>
+          <div class="card-body">
+            <div class="tab-content" id="inventoryTabContent">
+              <!-- Products Tab -->
+              <div class="tab-pane fade show active" id="products-pane" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                  <div class="d-flex align-items-center">
+                    <input type="text" class="form-control me-2" id="product-search" placeholder="Search products..." style="width: 300px;">
+                    <select class="form-select me-2" id="product-filter" style="width: 200px;">
+                      <option value="">All Products</option>
+                      <option value="low-stock">Low Stock</option>
+                      <option value="out-of-stock">Out of Stock</option>
+                      <option value="in-stock">In Stock</option>
+                    </select>
+                  </div>
+                  <button class="btn btn-primary" onclick="showAddProductModal()">
+                    <i class="fas fa-plus"></i> Add Product
+                  </button>
+                </div>
+                <div id="products-list" class="table-responsive">
+                  <!-- Products table will be populated here -->
+                </div>
+              </div>
+
+              <!-- Alerts Tab -->
+              <div class="tab-pane fade" id="alerts-pane" role="tabpanel">
+                <div class="row">
+                  <div class="col-md-6">
+                    <div class="card">
+                      <div class="card-header">
+                        <h6 class="mb-0 text-warning">⚠️ Low Stock Alerts</h6>
+                      </div>
+                      <div class="card-body">
+                        <div id="low-stock-alerts">
+                          <!-- Low stock alerts will be populated here -->
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="card">
+                      <div class="card-header">
+                        <h6 class="mb-0 text-danger">❌ Out of Stock Alerts</h6>
+                      </div>
+                      <div class="card-body">
+                        <div id="out-of-stock-alerts">
+                          <!-- Out of stock alerts will be populated here -->
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Transactions Tab -->
+              <div class="tab-pane fade" id="transactions-pane" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                  <div class="d-flex align-items-center">
+                    <select class="form-select me-2" id="transaction-filter" style="width: 200px;">
+                      <option value="">All Transactions</option>
+                      <option value="sale">Sales</option>
+                      <option value="restock">Restocks</option>
+                      <option value="adjustment">Adjustments</option>
+                      <option value="waste">Waste</option>
+                    </select>
+                    <input type="date" class="form-control me-2" id="transaction-date-from" style="width: 150px;">
+                    <input type="date" class="form-control" id="transaction-date-to" style="width: 150px;">
+                  </div>
+                </div>
+                <div id="transactions-list" class="table-responsive">
+                  <!-- Transactions table will be populated here -->
+                </div>
+              </div>
+
+              <!-- Recipe Links Tab -->
+              <div class="tab-pane fade" id="recipe-links-pane" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                  <div>
+                    <select class="form-select" id="recipe-select" style="width: 300px;">
+                      <option value="">Select a recipe to view links...</option>
+                    </select>
+                  </div>
+                  <button class="btn btn-primary" onclick="showRecipeLinkModal()">
+                    <i class="fas fa-link"></i> Add Recipe Link
+                  </button>
+                </div>
+                <div id="recipe-links-list">
+                  <!-- Recipe links will be populated here -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Database Management Section -->
@@ -482,7 +693,173 @@
       </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Add Product Modal -->
+    <div class="modal fade" id="productModal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="productModalTitle">Add Product</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <form id="productForm">
+              <input type="hidden" id="productId">
+              <div class="mb-3">
+                <label class="form-label">Product Name</label>
+                <input type="text" class="form-control" id="productName" required>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Description</label>
+                <textarea class="form-control" id="productDescription" rows="2"></textarea>
+              </div>
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label class="form-label">Unit of Measure</label>
+                    <select class="form-control" id="productUnit" required>
+                      <option value="">Select unit...</option>
+                      <option value="kg">Kilograms (kg)</option>
+                      <option value="g">Grams (g)</option>
+                      <option value="liters">Liters</option>
+                      <option value="ml">Milliliters (ml)</option>
+                      <option value="pieces">Pieces</option>
+                      <option value="cups">Cups</option>
+                      <option value="tbsp">Tablespoons</option>
+                      <option value="tsp">Teaspoons</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label class="form-label">Current Quantity</label>
+                    <input type="number" step="0.001" class="form-control" id="productQuantity" min="0" required>
+                  </div>
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label class="form-label">Low Stock Threshold</label>
+                    <input type="number" class="form-control" id="productThreshold" min="0" value="10">
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label class="form-label">Cost per Unit</label>
+                    <input type="number" step="0.01" class="form-control" id="productCost" min="0">
+                  </div>
+                </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Supplier Information</label>
+                <textarea class="form-control" id="productSupplier" rows="2" placeholder="Supplier name, contact info, etc."></textarea>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary" onclick="saveProduct()">Save Product</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Inventory Adjustment Modal -->
+    <div class="modal fade" id="adjustmentModal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="adjustmentModalTitle">Adjust Inventory</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <form id="adjustmentForm">
+              <input type="hidden" id="adjustmentProductId">
+              <div class="mb-3">
+                <label class="form-label">Product</label>
+                <input type="text" class="form-control" id="adjustmentProductName" readonly>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Current Quantity</label>
+                <input type="text" class="form-control" id="adjustmentCurrentQuantity" readonly>
+              </div>
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label class="form-label">Adjustment Type</label>
+                    <select class="form-control" id="adjustmentType" required>
+                      <option value="restock">Restock (Add)</option>
+                      <option value="adjustment">Manual Adjustment</option>
+                      <option value="waste">Waste (Remove)</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label class="form-label">Quantity Change</label>
+                    <input type="number" step="0.001" class="form-control" id="adjustmentQuantity" required>
+                    <small class="form-text text-muted">Positive for adding, negative for removing</small>
+                  </div>
+                </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Notes</label>
+                <textarea class="form-control" id="adjustmentNotes" rows="2" placeholder="Reason for adjustment..."></textarea>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary" onclick="saveAdjustment()">Save Adjustment</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recipe Link Modal -->
+    <div class="modal fade" id="recipeLinkModal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Link Recipe Ingredient to Product</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <form id="recipeLinkForm">
+              <div class="mb-3">
+                <label class="form-label">Recipe</label>
+                <select class="form-control" id="linkRecipeId" required onchange="loadRecipeIngredients()">
+                  <option value="">Select recipe...</option>
+                </select>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Recipe Ingredient</label>
+                <select class="form-control" id="linkIngredientId" required>
+                  <option value="">Select ingredient...</option>
+                </select>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Inventory Product</label>
+                <select class="form-control" id="linkProductId" required>
+                  <option value="">Select product...</option>
+                </select>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Quantity per Serving</label>
+                <input type="number" step="0.001" class="form-control" id="linkQuantityPerServing" min="0" required>
+                <small class="form-text text-muted">How much of this product is used per serving of the recipe</small>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary" onclick="saveRecipeLink()">Save Link</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net-npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="app.js"></script>
     <script src="live-reload.js"></script>
   </body>

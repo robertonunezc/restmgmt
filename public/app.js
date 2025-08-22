@@ -6,6 +6,10 @@ let menuItems = [];
 let orders = [];
 let recipes = [];
 let availableRecipes = [];
+let products = [];
+let inventoryAlerts = {};
+let inventoryTransactions = [];
+let recipeLinks = [];
 
 // Initialize app
 document.addEventListener("DOMContentLoaded", function () {
@@ -28,6 +32,7 @@ function showSection(section) {
   else if (section === "menu") loadMenuItems();
   else if (section === "orders") loadOrders();
   else if (section === "recipes") loadRecipes();
+  else if (section === "inventory") loadInventoryData();
   else if (section === "database") checkDatabaseStatus();
 }
 

@@ -439,5 +439,333 @@ router.delete('/recipe-links/:id', async (req, res, next) => {
   }
 });
 
+/**
+ * POST /api/inventory/products/:id/restock - Add inventory quantity (restock operation)
+ * Requirements: 3.1, 3.3
+ * 
+ * Request body should contain:
+ * - quantity (required): Quantity to add (positive number)
+ * - notes (optional): Notes about the restock operation
+ * - reference_id (optional): Reference ID for tracking
+ */
+router.post('/products/:id/restock', async (req, res, next) => {
+  try {
+    const productId = parseInt(req.params.id);
+    const { quantity, notes, reference_id } = req.body;
+    
+    console.log('POST /api/inventory/products/:id/restock called with ID:', productId, 'and data:', req.body);
+    
+    // Validate product ID parameter
+    if (isNaN(productId) || productId < 1) {
+      return res.status(400).json({
+        error: 'Invalid product ID. Must be a positive integer.'
+      });
+    }
+    
+    // Validate quantity
+    if (!quantity || isNaN(quantity) || parseFloat(quantity) <= 0) {
+      return res.status(400).json({
+        error: 'Quantity is required and must be a positive number.'
+      });
+    }
+    
+    const { InventoryTransactionQueries } = await import('../utils/inventory-database.js');
+    
+    // Validate product exists
+    const product = await InventoryTransactionQueries.validateProductForQuantityUpdate(productId);
+    if (!product) {
+      return res.status(404).json({
+        error: 'Product not found'
+      });
+    }
+    
+    // Perform restock operation
+    const result = await InventoryTransactionQueries.restockProduct(productId, parseFloat(quantity), {
+      reference_type: 'manual',
+      reference_id: reference_id || null,
+      notes: notes || null
+    });
+    
+    console.log('Product restocked successfully:', productId, 'quantity:', quantity);
+    
+    // Return success with transaction and updated product data
+    res.json({
+      message: 'Product restocked successfully',
+      transaction: result.transaction,
+      product: result.product
+    });
+
+  } catch (error) {
+    // Pass error to error handling middleware
+    next(error);
+  }
+});
+
+/**
+ * POST /api/inventory/products/:id/adjust - Manual quantity adjustment
+ * Requirements: 3.1, 3.3
+ * 
+ * Request body should contain:
+ * - quantity_change (required): Quantity change (positive or negative number)
+ * - notes (optional): Notes about the adjustment
+ * - reference_id (optional): Reference ID for tracking
+ */
+router.post('/products/:id/adjust', async (req, res, next) => {
+  try {
+    const productId = parseInt(req.params.id);
+    const { quantity_change, notes, reference_id } = req.body;
+    
+    console.log('POST /api/inventory/products/:id/adjust called with ID:', productId, 'and data:', req.body);
+    
+    // Validate product ID parameter
+    if (isNaN(productId) || productId < 1) {
+      return res.status(400).json({
+        error: 'Invalid product ID. Must be a positive integer.'
+      });
+    }
+    
+    // Validate quantity_change
+    if (quantity_change === undefined || quantity_change === null || isNaN(quantity_change)) {
+      return res.status(400).json({
+        error: 'Quantity change is required and must be a valid number.'
+      });
+    }
+    
+    const quantityChangeNum = parseFloat(quantity_change);
+    
+    const { InventoryTransactionQueries } = await import('../utils/inventory-database.js');
+    
+    // Validate product exists and quantity change is valid
+    const validation = await InventoryTransactionQueries.validateQuantityChange(productId, quantityChangeNum);
+    if (!validation.isValid) {
+      return res.status(400).json({
+        error: validation.error
+      });
+    }
+    
+    // Perform adjustment operation
+    const result = await InventoryTransactionQueries.adjustProductQuantity(productId, quantityChangeNum, {
+      reference_type: 'manual',
+      reference_id: reference_id || null,
+      notes: notes || null
+    });
+    
+    console.log('Product quantity adjusted successfully:', productId, 'change:', quantityChangeNum);
+    
+    // Return success with transaction and updated product data
+    res.json({
+      message: 'Product quantity adjusted successfully',
+      transaction: result.transaction,
+      product: result.product
+    });
+
+  } catch (error) {
+    // Pass error to error handling middleware
+    next(error);
+  }
+});
+
+/**
+ * GET /api/inventory/transactions - Get inventory transaction history
+ * Requirements: 3.1, 3.3
+ * 
+ * Query parameters:
+ * - product_id (optional): Filter by product ID
+ * - transaction_type (optional): Filter by transaction type (sale, restock, adjustment, waste)
+ * - reference_type (optional): Filter by reference type (order, manual, recipe)
+ * - start_date (optional): Filter transactions from this date (ISO format)
+ * - end_date (optional): Filter transactions to this date (ISO format)
+ * - page (optional): Page number for pagination (default: 1)
+ * - limit (optional): Number of transactions per page (default: 50, max: 200)
+ */
+router.get('/transactions', async (req, res, next) => {
+  try {
+    const { 
+      product_id, 
+      transaction_type, 
+      reference_type,
+      start_date,
+      end_date,
+      page = 1, 
+      limit = 50 
+    } = req.query;
+    
+    console.log('GET /api/inventory/transactions called with query:', req.query);
+    
+    // Validate pagination parameters
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    
+    if (isNaN(pageNum) || pageNum < 1) {
+      return res.status(400).json({
+        error: 'Invalid page parameter. Must be a positive integer.'
+      });
+    }
+    
+    if (isNaN(limitNum) || limitNum < 1 || limitNum > 200) {
+      return res.status(400).json({
+        error: 'Invalid limit parameter. Must be between 1 and 200.'
+      });
+    }
+    
+    // Validate transaction_type if provided
+    const validTransactionTypes = ['sale', 'restock', 'adjustment', 'waste'];
+    if (transaction_type && !validTransactionTypes.includes(transaction_type)) {
+      return res.status(400).json({
+        error: `Invalid transaction_type. Must be one of: ${validTransactionTypes.join(', ')}`
+      });
+    }
+    
+    // Validate reference_type if provided
+    const validReferenceTypes = ['order', 'manual', 'recipe'];
+    if (reference_type && !validReferenceTypes.includes(reference_type)) {
+      return res.status(400).json({
+        error: `Invalid reference_type. Must be one of: ${validReferenceTypes.join(', ')}`
+      });
+    }
+    
+    // Validate product_id if provided
+    if (product_id && (isNaN(parseInt(product_id)) || parseInt(product_id) < 1)) {
+      return res.status(400).json({
+        error: 'Invalid product_id. Must be a positive integer.'
+      });
+    }
+    
+    const { InventoryTransactionQueries } = await import('../utils/inventory-database.js');
+    
+    // Build filters
+    const filters = {};
+    if (product_id) filters.product_id = parseInt(product_id);
+    if (transaction_type) filters.transaction_type = transaction_type;
+    if (reference_type) filters.reference_type = reference_type;
+    if (start_date) filters.start_date = start_date;
+    if (end_date) filters.end_date = end_date;
+    
+    // Get transactions and total count
+    const [transactions, totalCount] = await Promise.all([
+      InventoryTransactionQueries.getTransactions({
+        ...filters,
+        page: pageNum,
+        limit: limitNum
+      }),
+      InventoryTransactionQueries.getTransactionCount ? 
+        InventoryTransactionQueries.getTransactionCount(filters) : 
+        Promise.resolve(0)
+    ]);
+    
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(totalCount / limitNum);
+    const hasNextPage = pageNum < totalPages;
+    const hasPrevPage = pageNum > 1;
+    
+    console.log(`Retrieved ${transactions.length} transactions (page ${pageNum}/${totalPages})`);
+    
+    // Return paginated results with metadata
+    res.json({
+      transactions,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total: totalCount,
+        totalPages,
+        hasNextPage,
+        hasPrevPage
+      }
+    });
+
+  } catch (error) {
+    // Pass error to error handling middleware
+    next(error);
+  }
+});
+
+/**
+ * GET /api/inventory/alerts/low-stock - Get low stock alerts
+ * Requirements: 4.1, 4.2, 4.3
+ * 
+ * Returns array of products that are below their low stock threshold
+ */
+router.get('/alerts/low-stock', async (req, res, next) => {
+  try {
+    console.log('GET /api/inventory/alerts/low-stock called');
+    
+    const { AlertService } = require('../utils/alert-service');
+    
+    // Get low stock alerts
+    const alerts = await AlertService.getLowStockAlerts();
+    
+    console.log(`Retrieved ${alerts.length} low stock alerts`);
+    
+    // Return alerts data
+    res.json({
+      alerts,
+      count: alerts.length
+    });
+
+  } catch (error) {
+    // Pass error to error handling middleware
+    next(error);
+  }
+});
+
+/**
+ * GET /api/inventory/alerts/out-of-stock - Get out-of-stock alerts
+ * Requirements: 5.1, 5.2, 5.3
+ * 
+ * Returns array of products that are completely out of stock
+ */
+router.get('/alerts/out-of-stock', async (req, res, next) => {
+  try {
+    console.log('GET /api/inventory/alerts/out-of-stock called');
+    
+    const { AlertService } = require('../utils/alert-service');
+    
+    // Get out-of-stock alerts
+    const alerts = await AlertService.getOutOfStockAlerts();
+    
+    console.log(`Retrieved ${alerts.length} out-of-stock alerts`);
+    
+    // Return alerts data
+    res.json({
+      alerts,
+      count: alerts.length
+    });
+
+  } catch (error) {
+    // Pass error to error handling middleware
+    next(error);
+  }
+});
+
+/**
+ * GET /api/inventory/dashboard - Get dashboard summary data
+ * Requirements: 4.1, 4.2, 4.3, 5.1, 5.2, 5.3
+ * 
+ * Returns comprehensive dashboard data including:
+ * - Total product count
+ * - Low stock and out-of-stock counts
+ * - Alert arrays
+ * - Summary message
+ */
+router.get('/dashboard', async (req, res, next) => {
+  try {
+    console.log('GET /api/inventory/dashboard called');
+    
+    const { AlertService } = require('../utils/alert-service');
+    
+    // Get comprehensive dashboard summary
+    const summary = await AlertService.getDashboardSummary();
+    
+    console.log(`Dashboard summary generated: ${summary.total_products} products, ${summary.low_stock_count} low stock, ${summary.out_of_stock_count} out of stock`);
+    
+    // Return dashboard data
+    res.json(summary);
+
+  } catch (error) {
+    // Pass error to error handling middleware
+    next(error);
+  }
+});
+
 console.log('Inventory router configured');
 module.exports = router;

@@ -244,6 +244,149 @@ body {
     max-width: 900px;
 }
 
+/* Inventory Dashboard Styles */
+.inventory-summary-card {
+    transition: transform 0.2s ease;
+    border: none;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.inventory-summary-card:hover {
+    transform: translateY(-5px);
+}
+
+.inventory-icon {
+    font-size: 2rem;
+    margin-bottom: 10px;
+}
+
+.inventory-summary-card .card-title {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.inventory-alert-item {
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 10px;
+    margin-bottom: 10px;
+    background: white;
+    transition: all 0.2s ease;
+}
+
+.inventory-alert-item:hover {
+    transform: translateX(5px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.inventory-alert-item.low-stock {
+    border-left: 4px solid #ffc107;
+    background-color: #fff3cd;
+}
+
+.inventory-alert-item.out-of-stock {
+    border-left: 4px solid #dc3545;
+    background-color: #f8d7da;
+}
+
+.product-quantity-badge {
+    font-size: 0.9rem;
+    padding: 4px 8px;
+}
+
+.product-quantity-badge.low-stock {
+    background-color: #ffc107;
+    color: #212529;
+}
+
+.product-quantity-badge.out-of-stock {
+    background-color: #dc3545;
+    color: white;
+}
+
+.product-quantity-badge.in-stock {
+    background-color: #28a745;
+    color: white;
+}
+
+.inventory-action-btn {
+    padding: 2px 8px;
+    font-size: 0.8rem;
+    margin: 1px;
+}
+
+.transaction-type-badge {
+    font-size: 0.8rem;
+    padding: 3px 6px;
+}
+
+.transaction-type-sale {
+    background-color: #dc3545;
+    color: white;
+}
+
+.transaction-type-restock {
+    background-color: #28a745;
+    color: white;
+}
+
+.transaction-type-adjustment {
+    background-color: #17a2b8;
+    color: white;
+}
+
+.transaction-type-waste {
+    background-color: #6c757d;
+    color: white;
+}
+
+.recipe-link-item {
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 15px;
+    margin-bottom: 10px;
+    background: white;
+}
+
+.recipe-link-item:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.nav-tabs .nav-link {
+    color: #495057;
+    border: 1px solid transparent;
+}
+
+.nav-tabs .nav-link.active {
+    color: #007bff;
+    background-color: #fff;
+    border-color: #dee2e6 #dee2e6 #fff;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0,123,255,.075);
+}
+
+.btn-group-sm > .btn, .btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+#out-of-stock-banner {
+    border-left: 5px solid #dc3545;
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+}
+
+.alert-dismissible .btn-close {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 2;
+    padding: 1.25rem 1rem;
+}
+
 @media (max-width: 768px) {
     .table-card {
         margin-bottom: 15px;
@@ -260,5 +403,17 @@ body {
     
     .menu-select-card .card-body {
         padding: 1rem !important;
+    }
+    
+    .inventory-summary-card .card-title {
+        font-size: 2rem;
+    }
+    
+    .inventory-icon {
+        font-size: 1.5rem;
+    }
+    
+    .table-responsive {
+        font-size: 0.9rem;
     }
 }

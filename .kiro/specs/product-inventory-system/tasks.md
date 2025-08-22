@@ -49,7 +49,7 @@
     - Write integration tests for recipe linking API endpoints
     - _Requirements: 2.1, 2.2, 2.3_
 
-- [-] 4. Implement inventory transaction and quantity management
+- [x] 4. Implement inventory transaction and quantity management
   - [x] 4.1 Create inventory transaction model and logging system
     - Write InventoryTransaction class with validation for transaction types
     - Implement transaction logging functions for all inventory changes
@@ -64,45 +64,45 @@
     - Write unit tests for quantity update operations
     - _Requirements: 3.1, 3.3_
 
-  - [-] 4.3 Create inventory operation API endpoints
+  - [x] 4.3 Create inventory operation API endpoints
     - Implement POST /api/inventory/products/:id/restock for adding inventory
     - Implement POST /api/inventory/products/:id/adjust for manual adjustments
     - Implement GET /api/inventory/transactions for transaction history
     - Write integration tests for inventory operation endpoints
     - _Requirements: 3.1, 3.3_
 
-- [ ] 5. Implement automatic inventory updates for sales
-  - [ ] 5.1 Create order processing inventory integration
+- [x] 5. Implement automatic inventory updates for sales
+  - [x] 5.1 Create order processing inventory integration
     - Write function to calculate ingredient quantities from recipe servings
     - Implement automatic inventory deduction when orders are completed
     - Create batch update operations for multiple products in single transaction
     - Write unit tests for order processing inventory calculations
     - _Requirements: 3.1, 3.2, 3.3_
 
-  - [ ] 5.2 Integrate inventory updates with existing order system
+  - [x] 5.2 Integrate inventory updates with existing order system
     - Modify existing order completion workflow to trigger inventory updates
     - Implement error handling for insufficient inventory scenarios
     - Add inventory update logging to existing order processing
     - Write integration tests for order-inventory workflow
     - _Requirements: 3.1, 3.2, 3.3_
 
-- [ ] 6. Implement low stock and out-of-stock alert system
-  - [ ] 6.1 Create alert detection and generation functions
+- [x] 6. Implement low stock and out-of-stock alert system
+  - [x] 6.1 Create alert detection and generation functions
     - Write functions to detect products below low stock threshold
     - Implement out-of-stock product detection
     - Create alert data structures and validation
     - Write unit tests for alert detection logic
     - _Requirements: 4.1, 4.2, 4.3, 5.1, 5.2, 5.3_
 
-  - [ ] 6.2 Implement alert API endpoints
+  - [x] 6.2 Implement alert API endpoints
     - Implement GET /api/inventory/alerts/low-stock for low stock alerts
     - Implement GET /api/inventory/alerts/out-of-stock for out-of-stock alerts
     - Implement GET /api/inventory/dashboard for dashboard summary data
     - Write integration tests for alert API endpoints
     - _Requirements: 4.1, 4.2, 4.3, 5.1, 5.2, 5.3_
 
-- [ ] 7. Create frontend dashboard integration
-  - [ ] 7.1 Implement inventory dashboard components
+- [-] 7. Create frontend dashboard integration
+  - [-] 7.1 Implement inventory dashboard components
     - Create inventory summary widgets for main dashboard
     - Implement out-of-stock banner component for dashboard alerts
     - Add inventory status indicators and quick action buttons

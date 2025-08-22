@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../utils/db-connection');
+const OrderInventoryService = require('../utils/order-inventory-service-cjs.js');
 
 // Get all orders
 router.get('/', async (req, res) => {
@@ -64,12 +65,118 @@ router.post('/', async (req, res) => {
 router.put('/:id/status', async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
+  const client = await pool.connect();
+  
   try {
-    const result = await pool.query(
+    await client.query('BEGIN');
+    
+    // Get current order status
+    const currentOrderResult = await client.query('SELECT status FROM orders WHERE id = $1', [id]);
+    if (currentOrderResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    
+    const currentStatus = currentOrderResult.rows[0].status;
+    
+    // Update order status
+    const result = await client.query(
       'UPDATE orders SET status = $1 WHERE id = $2 RETURNING *',
       [status, id]
     );
+    
+    // If order is being marked as 'served' or 'paid' and wasn't already processed, update inventory
+    if ((status === 'served' || status === 'paid') && 
+        currentStatus !== 'served' && currentStatus !== 'paid') {
+      
+      try {
+        // Process inventory updates for the order
+        const inventoryResult = await OrderInventoryService.processExistingOrderInventoryUpdate(id, {
+          skipInventoryCheck: false // Check inventory by default
+        });
+        
+        if (!inventoryResult.success) {
+          // Log inventory update failure but don't fail the order status update
+          console.warn(`Inventory update failed for order ${id}:`, inventoryResult.errors);
+          
+          // Check if it's an insufficient inventory error
+          const hasInsufficientInventory = inventoryResult.errors.some(
+            error => error.type === 'insufficient_inventory'
+          );
+          
+          if (hasInsufficientInventory) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({
+              error: 'Insufficient inventory to complete order',
+              details: inventoryResult.errors[0].details
+            });
+          }
+        } else {
+          console.log(`Successfully updated inventory for order ${id}:`, inventoryResult.transactions.length, 'transactions created');
+        }
+      } catch (inventoryError) {
+        console.error(`Inventory update error for order ${id}:`, inventoryError);
+        // Continue with order status update even if inventory update fails
+      }
+    }
+    
+    await client.query('COMMIT');
     res.json(result.rows[0]);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Process inventory updates for an order (manual trigger)
+router.post('/:id/process-inventory', async (req, res) => {
+  const { id } = req.params;
+  const { skipInventoryCheck = false } = req.body;
+  
+  try {
+    const result = await OrderInventoryService.processExistingOrderInventoryUpdate(id, {
+      skipInventoryCheck
+    });
+    
+    if (result.success) {
+      res.json({
+        message: result.message,
+        transactions: result.transactions,
+        transactionCount: result.transactions.length
+      });
+    } else {
+      const statusCode = result.errors.some(e => e.type === 'order_not_found') ? 404 : 400;
+      res.status(statusCode).json({
+        error: 'Failed to process inventory updates',
+        details: result.errors
+      });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Check inventory availability for an order
+router.get('/:id/inventory-check', async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    const orderItems = await OrderInventoryService.getOrderItems(id);
+    
+    if (orderItems.length === 0) {
+      return res.status(404).json({ error: 'Order not found or has no items' });
+    }
+    
+    const availabilityCheck = await OrderInventoryService.checkInventoryAvailability(orderItems);
+    
+    res.json({
+      orderId: id,
+      isValid: availabilityCheck.isValid,
+      insufficientItems: availabilityCheck.insufficientItems,
+      ingredientQuantities: availabilityCheck.ingredientQuantities
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
