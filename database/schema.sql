@@ -12,15 +12,19 @@ CREATE TABLE IF NOT EXISTS tables (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Menu Items
+-- Menu Items (now based on recipes)
 CREATE TABLE IF NOT EXISTS menu_items (
     id SERIAL PRIMARY KEY,
+    recipe_id INTEGER REFERENCES recipes(id) ON DELETE CASCADE,
     name VARCHAR(100) NOT NULL,
     description TEXT,
     price DECIMAL(10,2) NOT NULL,
     category VARCHAR(50) NOT NULL,
     available BOOLEAN DEFAULT true,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    cost_per_serving DECIMAL(10,2), -- calculated from recipe ingredients
+    profit_margin DECIMAL(5,2) DEFAULT 0.30, -- 30% default margin
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Orders
@@ -87,14 +91,18 @@ CREATE INDEX IF NOT EXISTS idx_recipe_steps_recipe_id ON recipe_steps(recipe_id)
 INSERT INTO tables (table_number, capacity) VALUES 
 (1, 2), (2, 4), (3, 4), (4, 6), (5, 2), (6, 8);
 
-INSERT INTO menu_items (name, description, price, category) VALUES 
-('Margherita Pizza', 'Fresh tomatoes, mozzarella, basil', 12.99, 'Pizza'),
-('Caesar Salad', 'Romaine lettuce, parmesan, croutons', 8.99, 'Salads'),
-('Grilled Chicken', 'Herb-seasoned chicken breast', 15.99, 'Main Course'),
-('Pasta Carbonara', 'Creamy pasta with bacon and eggs', 13.99, 'Pasta'),
-('Chocolate Cake', 'Rich chocolate layer cake', 6.99, 'Desserts'),
-('Coffee', 'Freshly brewed coffee', 2.99, 'Beverages'),
-('Orange Juice', 'Fresh squeezed orange juice', 3.99, 'Beverages');
+-- Menu items now based on recipes
+INSERT INTO menu_items (recipe_id, name, description, price, category, cost_per_serving, profit_margin) VALUES 
+(1, 'Classic Margherita Pizza', 'Traditional Italian pizza with fresh tomatoes, mozzarella, and basil', 16.99, 'Pizza', 6.50, 0.35),
+(2, 'Fresh Lemonade', 'Refreshing homemade lemonade with fresh lemons', 4.99, 'Beverages', 1.20, 0.40),
+(3, 'Chicken Carbonara', 'Creamy pasta dish with chicken, bacon, and parmesan', 18.99, 'Pasta', 8.75, 0.32);
+
+-- Legacy menu items (without recipes) - will be migrated
+INSERT INTO menu_items (name, description, price, category, cost_per_serving, profit_margin) VALUES 
+('Caesar Salad', 'Romaine lettuce, parmesan, croutons', 8.99, 'Salads', 3.20, 0.35),
+('Grilled Chicken', 'Herb-seasoned chicken breast', 15.99, 'Main Course', 7.50, 0.30),
+('Chocolate Cake', 'Rich chocolate layer cake', 6.99, 'Desserts', 2.80, 0.40),
+('Coffee', 'Freshly brewed coffee', 2.99, 'Beverages', 0.85, 0.45);
 
 -- Sample Recipe Data for Testing
 INSERT INTO recipes (name, description, category, prep_time, cook_time, servings, difficulty) VALUES 

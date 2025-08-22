@@ -28,6 +28,8 @@ const {
 app.use('/api/menu', require('./routes/menu'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/tables', require('./routes/tables'));
+app.use('/api/recipes', require('./routes/recipes'));
+app.use('/api/database', require('./routes/database'));
 app.use('/api/recipes',  require('./routes/recipes'));
 
 // Serve main page

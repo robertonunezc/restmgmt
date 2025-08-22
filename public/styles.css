@@ -67,6 +67,104 @@ body {
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 
+.menu-item-card.recipe-based {
+    border-left: 4px solid #17a2b8;
+}
+
+.recipe-card {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 15px;
+    background: white;
+    margin-bottom: 15px;
+    transition: transform 0.2s ease;
+}
+
+.recipe-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.recipe-info {
+    font-size: 0.85rem;
+}
+
+.recipe-meta {
+    background-color: #f8f9fa;
+    padding: 8px;
+    border-radius: 4px;
+}
+
+.ingredient-row, .step-row {
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    padding: 10px;
+    background-color: #f8f9fa;
+}
+
+.ingredient-row:hover, .step-row:hover {
+    background-color: #e9ecef;
+}
+
+.modal-xl {
+    max-width: 1200px;
+}
+
+#recipeModal .modal-body {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+/* Database Management Styles */
+.log-entry {
+    margin-bottom: 5px;
+    padding: 5px;
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+}
+
+.log-entry .timestamp {
+    color: #6c757d;
+    font-weight: bold;
+}
+
+.log-info {
+    background-color: #e3f2fd;
+    border-left: 3px solid #2196f3;
+}
+
+.log-success {
+    background-color: #e8f5e8;
+    border-left: 3px solid #4caf50;
+}
+
+.log-warning {
+    background-color: #fff3cd;
+    border-left: 3px solid #ffc107;
+}
+
+.log-error {
+    background-color: #f8d7da;
+    border-left: 3px solid #dc3545;
+}
+
+.badge-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.card {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border: 1px solid #dee2e6;
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
 .price-tag {
     font-size: 1.2rem;
     font-weight: bold;
@@ -100,6 +198,52 @@ body {
     gap: 5px;
 }
 
+.menu-select-card {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+}
+
+.menu-select-card:hover {
+    border-color: #007bff;
+    transform: translateY(-2px);
+}
+
+.menu-select-card.selected {
+    border-color: #28a745;
+    background-color: #f8fff9;
+}
+
+.quantity-controls {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.quantity-controls button {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#order-summary {
+    border-top: 1px solid #dee2e6;
+    padding-top: 1rem;
+}
+
+#selected-items {
+    min-height: 100px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.modal-lg {
+    max-width: 900px;
+}
+
 @media (max-width: 768px) {
     .table-card {
         margin-bottom: 15px;
@@ -108,5 +252,13 @@ body {
     .status-legend {
         flex-wrap: wrap;
         margin-top: 10px;
+    }
+    
+    .modal-lg {
+        max-width: 95%;
+    }
+    
+    .menu-select-card .card-body {
+        padding: 1rem !important;
     }
 }
