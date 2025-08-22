@@ -50,21 +50,21 @@
     - _Requirements: 2.1, 2.2, 2.3_
 
 - [-] 4. Implement inventory transaction and quantity management
-  - [-] 4.1 Create inventory transaction model and logging system
+  - [x] 4.1 Create inventory transaction model and logging system
     - Write InventoryTransaction class with validation for transaction types
     - Implement transaction logging functions for all inventory changes
     - Create validation for quantity changes and reference data
     - Write unit tests for transaction model and logging
     - _Requirements: 3.1, 3.3_
 
-  - [ ] 4.2 Implement inventory quantity update operations
+  - [x] 4.2 Implement inventory quantity update operations
     - Write functions to adjust product quantities with transaction logging
     - Implement restock and manual adjustment operations
     - Create atomic database operations for quantity updates
     - Write unit tests for quantity update operations
     - _Requirements: 3.1, 3.3_
 
-  - [ ] 4.3 Create inventory operation API endpoints
+  - [-] 4.3 Create inventory operation API endpoints
     - Implement POST /api/inventory/products/:id/restock for adding inventory
     - Implement POST /api/inventory/products/:id/adjust for manual adjustments
     - Implement GET /api/inventory/transactions for transaction history

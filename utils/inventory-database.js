@@ -262,6 +262,80 @@ class InventoryTransactionQueries {
   }
 
   /**
+   * Adjust product quantity with transaction logging (restock operation)
+   * @param {number} productId - Product ID
+   * @param {number} quantityToAdd - Quantity to add (positive number)
+   * @param {Object} options - Additional options (reference_type, reference_id, notes)
+   * @returns {Promise<Object>} - Created transaction with updated product
+   */
+  static async restockProduct(productId, quantityToAdd, options = {}) {
+    const transactionData = {
+      product_id: productId,
+      transaction_type: 'restock',
+      quantity_change: Math.abs(quantityToAdd), // Ensure positive for restock
+      reference_type: options.reference_type || 'manual',
+      reference_id: options.reference_id || null,
+      notes: options.notes || `Restock: +${Math.abs(quantityToAdd)} units`
+    };
+
+    return this.createTransaction(transactionData);
+  }
+
+  /**
+   * Adjust product quantity with transaction logging (manual adjustment)
+   * @param {number} productId - Product ID
+   * @param {number} quantityChange - Quantity change (positive or negative)
+   * @param {Object} options - Additional options (reference_type, reference_id, notes)
+   * @returns {Promise<Object>} - Created transaction with updated product
+   */
+  static async adjustProductQuantity(productId, quantityChange, options = {}) {
+    const transactionData = {
+      product_id: productId,
+      transaction_type: 'adjustment',
+      quantity_change: quantityChange,
+      reference_type: options.reference_type || 'manual',
+      reference_id: options.reference_id || null,
+      notes: options.notes || `Manual adjustment: ${quantityChange > 0 ? '+' : ''}${quantityChange} units`
+    };
+
+    return this.createTransaction(transactionData);
+  }
+
+  /**
+   * Validate product exists before quantity operations
+   * @param {number} productId - Product ID to validate
+   * @returns {Promise<Object|null>} - Product data or null if not found
+   */
+  static async validateProductForQuantityUpdate(productId) {
+    const query = 'SELECT * FROM products WHERE id = $1';
+    const result = await DatabaseUtils.query(query, [productId]);
+    return result.rows.length > 0 ? result.rows[0] : null;
+  }
+
+  /**
+   * Check if quantity adjustment would result in negative inventory
+   * @param {number} productId - Product ID
+   * @param {number} quantityChange - Proposed quantity change
+   * @returns {Promise<Object>} - { isValid: boolean, currentQuantity: number, newQuantity: number }
+   */
+  static async validateQuantityChange(productId, quantityChange) {
+    const product = await this.validateProductForQuantityUpdate(productId);
+    
+    if (!product) {
+      return { isValid: false, error: 'Product not found' };
+    }
+
+    const newQuantity = parseFloat(product.current_quantity) + parseFloat(quantityChange);
+    
+    return {
+      isValid: newQuantity >= 0,
+      currentQuantity: parseFloat(product.current_quantity),
+      newQuantity: newQuantity,
+      error: newQuantity < 0 ? 'Quantity adjustment would result in negative inventory' : null
+    };
+  }
+
+  /**
    * Process inventory updates for an order (batch operation)
    * @param {number} orderId - Order ID
    * @param {Array} orderItems - Array of order items with quantities

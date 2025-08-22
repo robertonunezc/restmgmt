@@ -1,5 +1,3 @@
-const { validateRequired, validateNumber, validateString } = require('../utils/validation');
-
 class InventoryTransaction {
   constructor(data) {
     this.id = data.id;
@@ -19,21 +17,24 @@ class InventoryTransaction {
     const errors = [];
 
     // Validate required fields
-    if (!validateRequired(this.product_id)) {
+    if (this.product_id === undefined || this.product_id === null || this.product_id === '') {
       errors.push('Product ID is required');
     }
 
-    if (!validateRequired(this.transaction_type)) {
+    if (!this.transaction_type || this.transaction_type.trim() === '') {
       errors.push('Transaction type is required');
     }
 
-    if (!validateRequired(this.quantity_change)) {
+    if (this.quantity_change === undefined || this.quantity_change === null || this.quantity_change === '') {
       errors.push('Quantity change is required');
     }
 
     // Validate product_id is a positive integer
-    if (this.product_id && !validateNumber(this.product_id, { min: 1, integer: true })) {
-      errors.push('Product ID must be a positive integer');
+    if (this.product_id !== undefined && this.product_id !== null && this.product_id !== '') {
+      const productId = Number(this.product_id);
+      if (!Number.isInteger(productId) || productId < 1) {
+        errors.push('Product ID must be a positive integer');
+      }
     }
 
     // Validate transaction_type is from allowed values
@@ -42,8 +43,11 @@ class InventoryTransaction {
     }
 
     // Validate quantity_change is a number (can be negative)
-    if (this.quantity_change !== undefined && !validateNumber(this.quantity_change)) {
-      errors.push('Quantity change must be a valid number');
+    if (this.quantity_change !== undefined && this.quantity_change !== null && this.quantity_change !== '') {
+      const quantityChange = Number(this.quantity_change);
+      if (isNaN(quantityChange)) {
+        errors.push('Quantity change must be a valid number');
+      }
     }
 
     // Validate reference_type if provided
@@ -52,12 +56,15 @@ class InventoryTransaction {
     }
 
     // Validate reference_id if reference_type is provided
-    if (this.reference_type && this.reference_id && !validateNumber(this.reference_id, { min: 1, integer: true })) {
-      errors.push('Reference ID must be a positive integer when reference type is provided');
+    if (this.reference_type && this.reference_id !== undefined && this.reference_id !== null) {
+      const referenceId = Number(this.reference_id);
+      if (!Number.isInteger(referenceId) || referenceId < 1) {
+        errors.push('Reference ID must be a positive integer when reference type is provided');
+      }
     }
 
     // Validate notes length if provided
-    if (this.notes && !validateString(this.notes, { maxLength: 1000 })) {
+    if (this.notes && (typeof this.notes !== 'string' || this.notes.length > 1000)) {
       errors.push('Notes must be a string with maximum 1000 characters');
     }
 
