@@ -3,6 +3,8 @@
  * Provides validation functions for recipe data according to requirements 6.1-6.6
  */
 
+const { pool } = require('./db-connection');
+
 /**
  * Validates recipe basic fields
  * @param {Object} recipe - Recipe object to validate
@@ -68,11 +70,11 @@ function validateRecipe(recipe) {
 function validateIngredient(ingredient) {
   const errors = [];
 
-  // Requirement 6.1: ingredient name is required
-  if (!ingredient.name || typeof ingredient.name !== 'string') {
-    errors.push({ field: 'name', message: 'Ingredient name is required' });
-  } else if (ingredient.name.trim().length === 0) {
-    errors.push({ field: 'name', message: 'Ingredient name cannot be empty' });
+  // Requirement 7.6, 1.2: product_id is required instead of ingredient name
+  if (!ingredient.product_id || typeof ingredient.product_id !== 'number') {
+    errors.push({ field: 'product_id', message: 'Product ID is required and must be a number' });
+  } else if (!Number.isInteger(ingredient.product_id) || ingredient.product_id <= 0) {
+    errors.push({ field: 'product_id', message: 'Product ID must be a positive integer' });
   }
 
   // Requirement 6.2: quantities must be positive numbers
@@ -197,9 +199,60 @@ function validateCompleteRecipe(recipeData) {
   };
 }
 
+/**
+ * Validates that all product IDs in ingredients exist in the database
+ * @param {Array} ingredients - Array of ingredient objects with product_id
+ * @returns {Promise<Object>} - { isValid: boolean, errors: Array }
+ */
+async function validateProductsExist(ingredients) {
+  const errors = [];
+  
+  if (!ingredients || !Array.isArray(ingredients) || ingredients.length === 0) {
+    return { isValid: true, errors: [] };
+  }
+
+  // Get unique product IDs
+  const productIds = [...new Set(ingredients.map(ing => ing.product_id).filter(id => id))];
+  
+  if (productIds.length === 0) {
+    return { isValid: true, errors: [] };
+  }
+
+  try {
+    // Check which products exist
+    const placeholders = productIds.map((_, index) => `$${index + 1}`).join(',');
+    const query = `SELECT id FROM products WHERE id IN (${placeholders})`;
+    const result = await pool.query(query, productIds);
+    
+    const existingIds = result.rows.map(row => row.id);
+    const missingIds = productIds.filter(id => !existingIds.includes(id));
+    
+    // Add errors for missing products
+    missingIds.forEach(id => {
+      const ingredientIndex = ingredients.findIndex(ing => ing.product_id === id);
+      errors.push({
+        field: `ingredients[${ingredientIndex}].product_id`,
+        message: `Product with ID ${id} does not exist in inventory`
+      });
+    });
+    
+  } catch (error) {
+    errors.push({
+      field: 'ingredients',
+      message: 'Failed to validate product references'
+    });
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+}
+
 module.exports = {
   validateRecipe,
   validateIngredient,
   validateStep,
-  validateCompleteRecipe
+  validateCompleteRecipe,
+  validateProductsExist
 };

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { validateCompleteRecipe } = require('../utils/validation');
+const { validateCompleteRecipe, validateProductsExist } = require('../utils/validation');
 const { RecipeQueries } = require('../utils/database');
 const { createValidationError } = require('../middleware/errorHandler');
 
@@ -111,6 +111,12 @@ router.post('/', async (req, res, next) => {
       throw createValidationError(validation.errors);
     }
 
+    // Validate that referenced products exist in inventory (Requirement 1.7)
+    const productValidation = await validateProductsExist(req.body.ingredients);
+    if (!productValidation.isValid) {
+      throw createValidationError(productValidation.errors);
+    }
+
     // Create recipe using database transaction
     const createdRecipe = await RecipeQueries.createRecipe(req.body);
     
@@ -205,6 +211,12 @@ router.put('/:id', async (req, res, next) => {
     const validation = validateCompleteRecipe(req.body);
     if (!validation.isValid) {
       throw createValidationError(validation.errors);
+    }
+
+    // Validate that referenced products exist in inventory
+    const productValidation = await validateProductsExist(req.body.ingredients);
+    if (!productValidation.isValid) {
+      throw createValidationError(productValidation.errors);
     }
 
     // Update recipe using database transaction (Requirement 3.2, 3.3, 3.4)

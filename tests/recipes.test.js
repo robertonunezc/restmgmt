@@ -43,20 +43,20 @@ describe("Recipe API Integration Tests", () => {
         difficulty: "medium",
         ingredients: [
           {
-            name: "All-purpose flour",
+            product_id: 8, // Granulated Sugar
             quantity: 2,
             unit: "cups",
             notes: "Sifted",
           },
           {
-            name: "Sugar",
+            product_id: 8, // Granulated Sugar
             quantity: 1.5,
             unit: "cups",
           },
           {
-            name: "Cocoa powder",
-            quantity: 0.75,
-            unit: "cups",
+            product_id: 12, // Fresh Eggs
+            quantity: 3,
+            unit: "pieces",
           },
         ],
         steps: [
@@ -105,7 +105,7 @@ describe("Recipe API Integration Tests", () => {
         [testRecipeId]
       );
       expect(ingredientsResult.rows).toHaveLength(3);
-      expect(ingredientsResult.rows[0].name).toBe("All-purpose flour");
+      expect(ingredientsResult.rows[0].product_id).toBe(8);
       expect(ingredientsResult.rows[0].quantity).toBe("2.000");
       expect(ingredientsResult.rows[0].unit).toBe("cups");
       expect(ingredientsResult.rows[0].notes).toBe("Sifted");
@@ -129,7 +129,7 @@ describe("Recipe API Integration Tests", () => {
         category: "food",
         ingredients: [
           {
-            name: "Lettuce",
+            product_id: 17, // Romaine Lettuce
           },
         ],
       };
@@ -153,7 +153,7 @@ describe("Recipe API Integration Tests", () => {
       const recipeData = {
         name: "Test Recipe - Auto Steps",
         category: "food",
-        ingredients: [{ name: "Test Ingredient" }],
+        ingredients: [{ product_id: 1 }], // Pizza Dough Balls
         steps: [
           { instruction: "First step without number" },
           { instruction: "Second step without number" },
@@ -213,7 +213,7 @@ describe("Recipe API Integration Tests", () => {
       const recipeData = {
         name: "Test Recipe",
         category: "invalid_category",
-        ingredients: [{ name: "Test Ingredient" }],
+        ingredients: [{ product_id: 1 }],
       };
 
       const response = await request(app)
@@ -236,9 +236,9 @@ describe("Recipe API Integration Tests", () => {
         name: "Test Recipe",
         category: "food",
         ingredients: [
-          { name: "Valid Ingredient" },
-          { name: "", quantity: -1 },
-          { quantity: 2, unit: "cups" }, // missing name
+          { product_id: 1 }, // Valid ingredient
+          { product_id: "invalid", quantity: -1 },
+          { quantity: 2, unit: "cups" }, // missing product_id
         ],
       };
 
@@ -250,16 +250,16 @@ describe("Recipe API Integration Tests", () => {
       expect(response.body.details).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            field: "ingredients[1].name",
-            message: "Ingredient name is required",
+            field: "ingredients[1].product_id",
+            message: "Product ID is required and must be a number",
           }),
           expect.objectContaining({
             field: "ingredients[1].quantity",
             message: "Quantity must be a positive number",
           }),
           expect.objectContaining({
-            field: "ingredients[2].name",
-            message: "Ingredient name is required",
+            field: "ingredients[2].product_id",
+            message: "Product ID is required and must be a number",
           }),
         ])
       );
@@ -269,7 +269,7 @@ describe("Recipe API Integration Tests", () => {
       const recipeData = {
         name: "Test Recipe",
         category: "food",
-        ingredients: [{ name: "Test Ingredient" }],
+        ingredients: [{ product_id: 1 }],
         steps: [
           { step_number: 1, instruction: "Valid step" },
           { step_number: 2, instruction: "" }, // empty instruction
@@ -300,7 +300,7 @@ describe("Recipe API Integration Tests", () => {
       const recipeData = {
         name: "Test Recipe",
         category: "food",
-        ingredients: [{ name: "Test Ingredient" }],
+        ingredients: [{ product_id: 1 }],
         steps: [
           { step_number: 1, instruction: "First step" },
           { step_number: 3, instruction: "Third step" }, // skipping step 2
@@ -331,12 +331,37 @@ describe("Recipe API Integration Tests", () => {
       expect(response.status).toBe(400);
     });
 
+    it("should return 422 for non-existent product references", async () => {
+      const recipeData = {
+        name: "Test Recipe - Invalid Product",
+        category: "food",
+        ingredients: [
+          { product_id: 1 }, // Valid product
+          { product_id: 99999 }, // Non-existent product
+        ],
+      };
+
+      const response = await request(app)
+        .post("/api/recipes")
+        .send(recipeData)
+        .expect(422);
+
+      expect(response.body.details).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            field: "ingredients[1].product_id",
+            message: "Product with ID 99999 does not exist in inventory",
+          }),
+        ])
+      );
+    });
+
     it("should handle database errors gracefully", async () => {
       // Create a recipe with extremely long name to trigger database constraint
       const recipeData = {
         name: "x".repeat(300), // Exceeds database limit
         category: "food",
-        ingredients: [{ name: "Test Ingredient" }],
+        ingredients: [{ product_id: 1 }],
       };
 
       const response = await request(app).post("/api/recipes").send(recipeData);
@@ -363,7 +388,7 @@ describe("Recipe API Integration Tests", () => {
           cook_time: 20,
           servings: 4,
           difficulty: "easy",
-          ingredients: [{ name: "Pasta" }, { name: "Tomato Sauce" }],
+          ingredients: [{ product_id: 9 }, { product_id: 2 }], // Spaghetti Pasta, Tomato Sauce
           steps: [{ instruction: "Boil pasta" }, { instruction: "Add sauce" }],
         },
         {
@@ -372,7 +397,7 @@ describe("Recipe API Integration Tests", () => {
           prep_time: 5,
           servings: 2,
           difficulty: "easy",
-          ingredients: [{ name: "Banana" }, { name: "Milk" }],
+          ingredients: [{ product_id: 7 }, { product_id: 14 }], // Fresh Lemons, Heavy Cream
           steps: [{ instruction: "Blend ingredients" }],
         },
         {
@@ -383,9 +408,9 @@ describe("Recipe API Integration Tests", () => {
           servings: 6,
           difficulty: "medium",
           ingredients: [
-            { name: "Dough" },
-            { name: "Cheese" },
-            { name: "Tomato Sauce" },
+            { product_id: 1 }, // Pizza Dough Balls
+            { product_id: 3 }, // Fresh Mozzarella
+            { product_id: 2 }, // Tomato Sauce
           ],
           steps: [
             { instruction: "Roll dough" },
@@ -572,20 +597,20 @@ describe("Recipe API Integration Tests", () => {
         difficulty: "medium",
         ingredients: [
           {
-            name: "Flour",
+            product_id: 8, // Granulated Sugar (using as flour substitute)
             quantity: 2,
             unit: "cups",
             notes: "All-purpose",
             order_index: 1,
           },
           {
-            name: "Sugar",
+            product_id: 8, // Granulated Sugar
             quantity: 1.5,
             unit: "cups",
             order_index: 2,
           },
           {
-            name: "Eggs",
+            product_id: 12, // Fresh Eggs
             quantity: 3,
             unit: "pieces",
             order_index: 3,
@@ -648,7 +673,7 @@ describe("Recipe API Integration Tests", () => {
       expect(recipe.ingredients).toHaveLength(3);
       expect(recipe.ingredients[0]).toEqual(
         expect.objectContaining({
-          name: "Flour",
+          product_id: 8,
           quantity: "2.000",
           unit: "cups",
           notes: "All-purpose",
@@ -722,13 +747,13 @@ describe("Recipe API Integration Tests", () => {
         difficulty: "easy",
         ingredients: [
           {
-            name: "Original Ingredient 1",
+            product_id: 1, // Pizza Dough Balls
             quantity: 1,
             unit: "cup",
             notes: "Original notes",
           },
           {
-            name: "Original Ingredient 2",
+            product_id: 2, // Tomato Sauce
             quantity: 2,
             unit: "pieces",
           },
@@ -769,18 +794,18 @@ describe("Recipe API Integration Tests", () => {
         difficulty: "medium",
         ingredients: [
           {
-            name: "Updated Ingredient 1",
+            product_id: 3, // Fresh Mozzarella
             quantity: 1.5,
             unit: "liters",
             notes: "Updated notes",
           },
           {
-            name: "Updated Ingredient 2",
+            product_id: 4, // Fresh Basil
             quantity: 3,
             unit: "tablespoons",
           },
           {
-            name: "New Ingredient 3",
+            product_id: 5, // Extra Virgin Olive Oil
             quantity: 0.5,
             unit: "cups",
           },
@@ -831,10 +856,10 @@ describe("Recipe API Integration Tests", () => {
         [testRecipe.id]
       );
       expect(ingredientsResult.rows).toHaveLength(3);
-      expect(ingredientsResult.rows[0].name).toBe("Updated Ingredient 1");
+      expect(ingredientsResult.rows[0].product_id).toBe(3);
       expect(ingredientsResult.rows[0].quantity).toBe("1.500");
       expect(ingredientsResult.rows[0].unit).toBe("liters");
-      expect(ingredientsResult.rows[2].name).toBe("New Ingredient 3");
+      expect(ingredientsResult.rows[2].product_id).toBe(5);
 
       // Verify steps were updated in database
       const stepsResult = await pool.query(
@@ -852,7 +877,7 @@ describe("Recipe API Integration Tests", () => {
         category: "food",
         ingredients: [
           {
-            name: "Single Ingredient",
+            product_id: 6, // Sea Salt
             quantity: 1,
             unit: "piece",
           },
@@ -878,7 +903,7 @@ describe("Recipe API Integration Tests", () => {
         [testRecipe.id]
       );
       expect(ingredientsResult.rows).toHaveLength(1);
-      expect(ingredientsResult.rows[0].name).toBe("Single Ingredient");
+      expect(ingredientsResult.rows[0].product_id).toBe(6);
 
       const stepsResult = await pool.query(
         "SELECT * FROM recipe_steps WHERE recipe_id = $1",
@@ -893,11 +918,11 @@ describe("Recipe API Integration Tests", () => {
         name: "Test Recipe - Expanded",
         category: "food",
         ingredients: [
-          { name: "Ingredient 1" },
-          { name: "Ingredient 2" },
-          { name: "Ingredient 3" },
-          { name: "Ingredient 4" },
-          { name: "Ingredient 5" },
+          { product_id: 7 }, // Fresh Lemons
+          { product_id: 8 }, // Granulated Sugar
+          { product_id: 9 }, // Spaghetti Pasta
+          { product_id: 10 }, // Chicken Breast
+          { product_id: 11 }, // Bacon Strips
         ],
         steps: [
           { step_number: 1, instruction: "Step 1" },
@@ -930,7 +955,7 @@ describe("Recipe API Integration Tests", () => {
       const updateData = {
         name: "Test Recipe - Minimal Update",
         category: "drink",
-        ingredients: [{ name: "Water" }],
+        ingredients: [{ product_id: 7 }], // Fresh Lemons (as water substitute)
       };
 
       const response = await request(app)
@@ -951,7 +976,7 @@ describe("Recipe API Integration Tests", () => {
       const updateData = {
         name: "Test Recipe - Non-existent",
         category: "food",
-        ingredients: [{ name: "Test Ingredient" }],
+        ingredients: [{ product_id: 1 }],
       };
 
       const response = await request(app)
@@ -966,7 +991,7 @@ describe("Recipe API Integration Tests", () => {
       const updateData = {
         name: "Test Recipe",
         category: "food",
-        ingredients: [{ name: "Test Ingredient" }],
+        ingredients: [{ product_id: 1 }],
       };
 
       const response = await request(app)

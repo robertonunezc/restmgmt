@@ -132,7 +132,7 @@ describe('Recipe Validation', () => {
   describe('validateIngredient', () => {
     it('should validate a valid ingredient', () => {
       const ingredient = {
-        name: 'Flour',
+        product_id: 1,
         quantity: 2.5,
         unit: 'cups',
         notes: 'All-purpose flour'
@@ -143,30 +143,30 @@ describe('Recipe Validation', () => {
       expect(result.errors).toHaveLength(0);
     });
 
-    it('should require name field', () => {
+    it('should require product_id field', () => {
       const ingredient = { quantity: 2 };
       const result = validateIngredient(ingredient);
       
       expect(result.isValid).toBe(false);
       expect(result.errors).toContainEqual({
-        field: 'name',
-        message: 'Ingredient name is required'
+        field: 'product_id',
+        message: 'Product ID is required and must be a number'
       });
     });
 
-    it('should reject empty name', () => {
-      const ingredient = { name: '   ' };
+    it('should reject invalid product_id', () => {
+      const ingredient = { product_id: 'invalid' };
       const result = validateIngredient(ingredient);
       
       expect(result.isValid).toBe(false);
       expect(result.errors).toContainEqual({
-        field: 'name',
-        message: 'Ingredient name cannot be empty'
+        field: 'product_id',
+        message: 'Product ID is required and must be a number'
       });
     });
 
     it('should validate quantity as positive number', () => {
-      const ingredient = { name: 'Salt', quantity: -1 };
+      const ingredient = { product_id: 1, quantity: -1 };
       const result = validateIngredient(ingredient);
       
       expect(result.isValid).toBe(false);
@@ -177,7 +177,7 @@ describe('Recipe Validation', () => {
     });
 
     it('should reject invalid quantity values', () => {
-      const ingredient = { name: 'Salt', quantity: 'invalid' };
+      const ingredient = { product_id: 1, quantity: 'invalid' };
       const result = validateIngredient(ingredient);
       
       expect(result.isValid).toBe(false);
@@ -188,7 +188,7 @@ describe('Recipe Validation', () => {
     });
 
     it('should validate unit as string', () => {
-      const ingredient = { name: 'Salt', unit: 123 };
+      const ingredient = { product_id: 1, unit: 123 };
       const result = validateIngredient(ingredient);
       
       expect(result.isValid).toBe(false);
@@ -199,7 +199,7 @@ describe('Recipe Validation', () => {
     });
 
     it('should allow optional fields to be undefined', () => {
-      const ingredient = { name: 'Salt' };
+      const ingredient = { product_id: 1 };
       const result = validateIngredient(ingredient);
       
       expect(result.isValid).toBe(true);
@@ -283,8 +283,8 @@ describe('Recipe Validation', () => {
         servings: 8,
         difficulty: 'medium',
         ingredients: [
-          { name: 'Flour', quantity: 2, unit: 'cups' },
-          { name: 'Sugar', quantity: 1.5, unit: 'cups' }
+          { product_id: 1, quantity: 2, unit: 'cups' },
+          { product_id: 2, quantity: 1.5, unit: 'cups' }
         ],
         steps: [
           { step_number: 1, instruction: 'Preheat oven to 350°F' },
@@ -317,16 +317,16 @@ describe('Recipe Validation', () => {
         name: 'Test Recipe',
         category: 'food',
         ingredients: [
-          { name: 'Valid Ingredient' },
-          { name: '', quantity: -1 }
+          { product_id: 1 },
+          { product_id: 'invalid', quantity: -1 }
         ]
       };
 
       const result = validateCompleteRecipe(recipeData);
       expect(result.isValid).toBe(false);
       expect(result.errors).toContainEqual({
-        field: 'ingredients[1].name',
-        message: 'Ingredient name is required'
+        field: 'ingredients[1].product_id',
+        message: 'Product ID is required and must be a number'
       });
       expect(result.errors).toContainEqual({
         field: 'ingredients[1].quantity',
@@ -338,7 +338,7 @@ describe('Recipe Validation', () => {
       const recipeData = {
         name: 'Test Recipe',
         category: 'food',
-        ingredients: [{ name: 'Test Ingredient' }],
+        ingredients: [{ product_id: 1 }],
         steps: [
           { step_number: 1, instruction: 'Valid step' },
           { step_number: 2, instruction: '' }
@@ -357,7 +357,7 @@ describe('Recipe Validation', () => {
       const recipeData = {
         name: 'Test Recipe',
         category: 'food',
-        ingredients: [{ name: 'Test Ingredient' }],
+        ingredients: [{ product_id: 1 }],
         steps: [
           { step_number: 1, instruction: 'First step' },
           { step_number: 3, instruction: 'Third step' }

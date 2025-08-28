@@ -13,10 +13,12 @@ This feature adds comprehensive recipe management capabilities to the restaurant
 #### Acceptance Criteria
 
 1. WHEN a user creates a new recipe THEN the system SHALL accept recipe name, description, category (food/drink), preparation time, cooking time, servings, and difficulty level
-2. WHEN a user adds ingredients to a recipe THEN the system SHALL store ingredient name, quantity, unit of measurement, and optional notes for each ingredient
-3. WHEN a user adds preparation steps THEN the system SHALL store step-by-step instructions with order sequence and optional timing information
-4. WHEN a recipe is created THEN the system SHALL assign a unique identifier and timestamp the creation date
-5. WHEN required fields are missing THEN the system SHALL return validation errors with specific field requirements
+2. WHEN a user adds ingredients to a recipe THEN the system SHALL only allow selection of ingredients from existing products in the inventory database
+3. WHEN a user selects an ingredient THEN the system SHALL store the product reference, quantity, unit of measurement, and optional notes for each ingredient
+4. WHEN a user adds preparation steps THEN the system SHALL store step-by-step instructions with order sequence and optional timing information
+5. WHEN a recipe is created THEN the system SHALL assign a unique identifier and timestamp the creation date
+6. WHEN required fields are missing THEN the system SHALL return validation errors with specific field requirements
+7. WHEN a user attempts to add an ingredient that doesn't exist as a product THEN the system SHALL prevent the addition and display available products for selection
 
 ### Requirement 2
 
@@ -78,3 +80,16 @@ This feature adds comprehensive recipe management capabilities to the restaurant
 4. WHEN recipe categories are specified THEN the system SHALL only accept "food" or "drink" as valid values
 5. WHEN recipe names are provided THEN the system SHALL ensure names are between 1 and 200 characters
 6. WHEN preparation steps are added THEN the system SHALL ensure each step has non-empty instruction text
+
+### Requirement 7
+
+**User Story:** As a chef using the frontend interface, I want to create recipes with ingredients selected from the inventory database, so that I can ensure accurate cost tracking and inventory management integration.
+
+#### Acceptance Criteria
+
+1. WHEN I access the recipe creation form THEN the system SHALL display a searchable dropdown or autocomplete field for ingredient selection
+2. WHEN I search for ingredients THEN the system SHALL show matching products from the inventory database with their names and units
+3. WHEN I select a product as an ingredient THEN the system SHALL auto-populate the ingredient name and available unit from the product database
+4. WHEN I specify ingredient quantities THEN the system SHALL validate that the unit matches the product's unit or allow unit conversion
+5. WHEN no products are available THEN the system SHALL display a message indicating that products must be added to inventory first
+6. WHEN I save a recipe with product-based ingredients THEN the system SHALL store the product_id reference for accurate inventory tracking

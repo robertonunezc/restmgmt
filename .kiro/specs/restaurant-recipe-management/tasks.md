@@ -90,3 +90,67 @@
   - Add performance tests for pagination and filtering
   - Verify all requirements are covered by tests
   - _Requirements: All requirements verification_
+
+- [x] 10. Update database schema for product-based ingredients
+- [x] 10.1 Modify recipe_ingredients table structure
+  - Add product_id foreign key column to recipe_ingredients table
+  - Remove name column from recipe_ingredients (use product reference instead)
+  - Add database constraint to prevent deletion of products used in recipes
+  - Create database migration script for existing data
+  - Update database indexes to include product_id
+  - _Requirements: 7.6, 1.2, 1.3_
+
+- [-] 11. Update backend API for product integration
+- [x] 11.1 Modify recipe creation endpoint for product references
+  - Update recipe creation validation to require product_id instead of ingredient name
+  - Add validation to ensure referenced products exist in inventory
+  - Modify ingredient data structure to store product references
+  - Update recipe creation tests for product-based ingredients
+  - _Requirements: 7.6, 1.2, 1.7_
+
+- [ ] 11.2 Update recipe retrieval endpoints for product data
+  - Modify recipe queries to JOIN with products table for ingredient names
+  - Update recipe response format to include product information
+  - Add product availability status to ingredient data
+  - Update recipe retrieval tests for new data structure
+  - _Requirements: 2.2, 7.3_
+
+- [ ] 11.3 Create product search endpoint for ingredient selection
+  - Implement GET /api/products/search endpoint with query parameter
+  - Add filtering and pagination for product search results
+  - Include product stock levels and units in search results
+  - Write tests for product search functionality
+  - _Requirements: 7.1, 7.2_
+
+- [ ] 12. Update frontend recipe creation interface
+- [ ] 12.1 Replace ingredient text inputs with product selection
+  - Remove free-text ingredient name inputs from recipe creation form
+  - Implement searchable dropdown/autocomplete for product selection
+  - Add product search functionality with real-time filtering
+  - Display product name, unit, and stock level in selection options
+  - Auto-populate ingredient unit when product is selected
+  - _Requirements: 7.1, 7.2, 7.3_
+
+- [ ] 12.2 Add product validation and user feedback
+  - Implement client-side validation for product selection
+  - Show "No products available" message when inventory is empty
+  - Add link to inventory management from recipe creation form
+  - Display unit conversion suggestions when units don't match
+  - Add loading states and error handling for product searches
+  - _Requirements: 7.4, 7.5_
+
+- [ ] 12.3 Update recipe display to show product information
+  - Modify recipe view to display product names from inventory
+  - Add current stock level indicators for each ingredient
+  - Show availability warnings for out-of-stock ingredients
+  - Update recipe cards to include cost calculations based on current prices
+  - _Requirements: 7.3, 7.6_
+
+- [ ] 13. Add comprehensive testing for product integration
+- [ ] 13.1 Write integration tests for product-based recipes
+  - Test recipe creation with valid product references
+  - Test validation errors for non-existent products
+  - Test recipe display with product information
+  - Test product search functionality
+  - Test edge cases like deleted products and stock changes
+  - _Requirements: All requirements verification_

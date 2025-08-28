@@ -35,10 +35,10 @@ Query parameters for filtering:
 
 ### Database Schema
 
-Three new tables will be added to support the recipe system:
+The recipe system integrates with the existing product inventory system. The main changes involve updating the recipe_ingredients table to reference products:
 
 ```sql
--- Main recipes table
+-- Main recipes table (unchanged)
 CREATE TABLE recipes (
     id SERIAL PRIMARY KEY,
     name VARCHAR(200) NOT NULL,
@@ -52,18 +52,18 @@ CREATE TABLE recipes (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Recipe ingredients
+-- Recipe ingredients (updated to reference products)
 CREATE TABLE recipe_ingredients (
     id SERIAL PRIMARY KEY,
     recipe_id INTEGER REFERENCES recipes(id) ON DELETE CASCADE,
-    name VARCHAR(100) NOT NULL,
-    quantity DECIMAL(10,3),
-    unit VARCHAR(50),
+    product_id INTEGER REFERENCES products(id) ON DELETE RESTRICT,
+    quantity DECIMAL(10,3) NOT NULL,
+    unit VARCHAR(50), -- should match or be convertible to product unit
     notes TEXT,
     order_index INTEGER DEFAULT 0
 );
 
--- Recipe preparation steps
+-- Recipe preparation steps (unchanged)
 CREATE TABLE recipe_steps (
     id SERIAL PRIMARY KEY,
     recipe_id INTEGER REFERENCES recipes(id) ON DELETE CASCADE,
@@ -73,6 +73,12 @@ CREATE TABLE recipe_steps (
     UNIQUE(recipe_id, step_number)
 );
 ```
+
+**Key Changes:**
+- `recipe_ingredients.name` removed - ingredient name comes from referenced product
+- `recipe_ingredients.product_id` added with foreign key to products table
+- `ON DELETE RESTRICT` prevents deletion of products that are used in recipes
+- Unit validation ensures compatibility with product units
 
 ### API Route Structure
 
@@ -116,7 +122,8 @@ const { pool } = require('../server');
 {
   id: number,
   recipe_id: number,
-  name: string,
+  product_id: number,
+  product_name: string, // populated from products table
   quantity: number,
   unit: string,
   notes: string,
@@ -175,10 +182,12 @@ LIMIT $3 OFFSET $4;
 -- Main recipe data
 SELECT * FROM recipes WHERE id = $1;
 
--- Recipe ingredients
-SELECT * FROM recipe_ingredients 
-WHERE recipe_id = $1 
-ORDER BY order_index, id;
+-- Recipe ingredients with product information
+SELECT ri.*, p.name as product_name, p.unit as product_unit
+FROM recipe_ingredients ri
+JOIN products p ON ri.product_id = p.id
+WHERE ri.recipe_id = $1 
+ORDER BY ri.order_index, ri.id;
 
 -- Recipe steps  
 SELECT * FROM recipe_steps 
@@ -271,6 +280,42 @@ Create test fixtures with:
 - Mock database connections for unit tests
 - Use supertest for API endpoint testing following existing patterns in the codebase
 
+## Frontend Integration
+
+### Product Selection Interface
+
+The recipe creation form will be enhanced to support product-based ingredient selection:
+
+#### API Endpoints for Product Selection
+- `GET /api/products/search?q={query}` - Search products for ingredient selection
+- `GET /api/products` - Get all products for dropdown population
+
+#### Frontend Components
+
+**Product Search/Selection:**
+- Replace free-text ingredient input with searchable dropdown
+- Implement autocomplete functionality for product search
+- Display product name, unit, and current stock level
+- Auto-populate unit field when product is selected
+
+**Validation:**
+- Ensure selected products exist in inventory
+- Validate quantity units against product units
+- Provide unit conversion suggestions when applicable
+
+**User Experience:**
+- Show "No products available" message when inventory is empty
+- Provide link to add products to inventory from recipe creation form
+- Display product stock levels to help with recipe planning
+
+### Enhanced Recipe Display
+
+When displaying recipes, ingredient information will include:
+- Product name from inventory
+- Current stock levels for each ingredient
+- Cost calculations based on current product prices
+- Availability warnings for out-of-stock ingredients
+
 ## Performance Considerations
 
 ### Database Indexing
@@ -280,6 +325,7 @@ Create test fixtures with:
 CREATE INDEX idx_recipes_category ON recipes(category);
 CREATE INDEX idx_recipes_name ON recipes(name);
 CREATE INDEX idx_recipe_ingredients_recipe_id ON recipe_ingredients(recipe_id);
+CREATE INDEX idx_recipe_ingredients_product_id ON recipe_ingredients(product_id);
 CREATE INDEX idx_recipe_steps_recipe_id ON recipe_steps(recipe_id);
 ```
 
@@ -289,9 +335,11 @@ CREATE INDEX idx_recipe_steps_recipe_id ON recipe_steps(recipe_id);
 - Implement pagination to limit result set sizes
 - Use prepared statements for parameterized queries
 - Consider connection pooling for concurrent requests (already implemented)
+- Cache product lists for ingredient selection
 
 ### Caching Strategy
 
 - Consider implementing Redis caching for frequently accessed recipes
 - Cache recipe lists with common filter combinations
+- Cache product lists for ingredient selection dropdowns
 - Implement cache invalidation on recipe updates/deletes

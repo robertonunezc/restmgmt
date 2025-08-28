@@ -92,12 +92,12 @@ class RecipeQueries {
         for (let i = 0; i < recipeData.ingredients.length; i++) {
           const ingredient = recipeData.ingredients[i];
           const ingredientQuery = `
-            INSERT INTO recipe_ingredients (recipe_id, name, quantity, unit, notes, order_index)
+            INSERT INTO recipe_ingredients (recipe_id, product_id, quantity, unit, notes, order_index)
             VALUES ($1, $2, $3, $4, $5, $6)
           `;
           const ingredientParams = [
             recipe.id,
-            ingredient.name,
+            ingredient.product_id,
             ingredient.quantity || null,
             ingredient.unit || null,
             ingredient.notes || null,
@@ -192,11 +192,14 @@ class RecipeQueries {
 
     const recipe = recipeResult.rows[0];
 
-    // Get ingredients
+    // Get ingredients with product information
     const ingredientsQuery = `
-      SELECT * FROM recipe_ingredients 
-      WHERE recipe_id = $1 
-      ORDER BY order_index, id
+      SELECT ri.*, p.name as product_name, p.unit_of_measure as product_unit, 
+             p.current_quantity as product_stock, p.low_stock_threshold
+      FROM recipe_ingredients ri
+      JOIN products p ON ri.product_id = p.id
+      WHERE ri.recipe_id = $1 
+      ORDER BY ri.order_index, ri.id
     `;
     const ingredientsResult = await DatabaseUtils.query(ingredientsQuery, [recipeId]);
     recipe.ingredients = ingredientsResult.rows;
@@ -258,12 +261,12 @@ class RecipeQueries {
         for (let i = 0; i < recipeData.ingredients.length; i++) {
           const ingredient = recipeData.ingredients[i];
           const ingredientQuery = `
-            INSERT INTO recipe_ingredients (recipe_id, name, quantity, unit, notes, order_index)
+            INSERT INTO recipe_ingredients (recipe_id, product_id, quantity, unit, notes, order_index)
             VALUES ($1, $2, $3, $4, $5, $6)
           `;
           const ingredientParams = [
             recipeId,
-            ingredient.name,
+            ingredient.product_id,
             ingredient.quantity || null,
             ingredient.unit || null,
             ingredient.notes || null,
